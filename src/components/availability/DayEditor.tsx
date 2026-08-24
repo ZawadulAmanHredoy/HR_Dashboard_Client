@@ -23,7 +23,9 @@ export function DayEditor({
 }: {
   day: AvailabilityDay;
   busy: boolean;
-  onCreate: (payload: SlotPayload) => Promise<void>;
+  onCreate: (
+    payload: SlotPayload,
+  ) => Promise<{ created?: number; skipped?: number } | void>;
   onDelete: (id: string) => Promise<void>;
   onToggleHoliday: (date: string) => Promise<void>;
 }) {
@@ -43,15 +45,19 @@ export function DayEditor({
   const submit = async () => {
     setError(null);
     try {
-      await onCreate({
+      const result = await onCreate({
         date: day.date,
         times: [time],
         duration_minutes: duration,
         mode,
         repeat_weeks: repeat ? 3 : 0,
       });
-      setTime("");
+      // Keep the picked time so several slots can be added back-to-back;
+      // only flag it when this exact slot already existed.
       setRepeat(false);
+      if (result && result.created === 0) {
+        setError(`${time} already exists on this day.`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add the slot");
     }

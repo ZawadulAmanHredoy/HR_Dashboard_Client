@@ -58,6 +58,15 @@ export default function ClientDetailsPage() {
     }
   };
 
+  /** Opens a booking-time upload through a short-lived signed URL. */
+  const openResume = async (resume: ClientDetail["resumes"][number]) => {
+    if (!resume.storagePath) return;
+    const { url } = await api.get<{ url: string }>(
+      endpoints.resumeUrl(decodeURIComponent(key), resume.storagePath),
+    );
+    window.open(url, "_blank", "noopener");
+  };
+
   const saveDetails = async (form: FormData) => {
     await api.patch(endpoints.client(decodeURIComponent(key)), {
       name: String(form.get("name")),
@@ -164,9 +173,18 @@ export default function ClientDetailsPage() {
         ) : (
           <div className="flex flex-wrap items-center gap-x-10 gap-y-5">
             <div className="flex items-center gap-4">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-ink-100 text-[16px] font-semibold text-ink-500">
-                {initials(data.name)}
-              </span>
+              {data.avatarUrl ? (
+                <img
+                  src={data.avatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="h-14 w-14 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-ink-100 text-[16px] font-semibold text-ink-500">
+                  {initials(data.name)}
+                </span>
+              )}
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-[19px] font-semibold text-ink-900">{data.name}</h2>
@@ -210,6 +228,16 @@ export default function ClientDetailsPage() {
         />
       </div>
 
+      {/* Booking note — what the client wrote when they booked */}
+      {data.bookingNote ? (
+        <section>
+          <h3 className="mb-3 text-[14px] font-semibold text-ink-900">Booking note</h3>
+          <div className="whitespace-pre-wrap rounded-2xl border border-ink-200 bg-ink-50/50 p-4 text-[13px] text-ink-900">
+            {data.bookingNote}
+          </div>
+        </section>
+      ) : null}
+
       {/* Resume */}
       <section>
         <h3 className="mb-3 text-[14px] font-semibold text-ink-900">Resume</h3>
@@ -239,6 +267,15 @@ export default function ClientDetailsPage() {
                   <p className="text-[11px] text-ink-400">
                     {resume.updatedAt ? longDate(resume.updatedAt.slice(0, 10)) : "Attached"}
                   </p>
+                  {resume.storagePath ? (
+                    <button
+                      type="button"
+                      onClick={() => void openResume(resume)}
+                      className="mt-1.5 text-[11px] font-medium text-brand-500 transition-colors hover:text-brand-600"
+                    >
+                      Open file
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}

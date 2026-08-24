@@ -114,12 +114,22 @@ export type ClientRecord = {
   nextAppointment: string | null;
   lastSeen: string;
   status: ClientStatus;
+  /** Consultant-authored note (client_records) */
   note: string;
-  attachments: { cv_id: string; title?: string }[];
+  /** Note the client wrote while booking their most recent session */
+  bookingNote?: string | null;
+  avatarUrl?: string | null;
+  attachments: { cv_id?: string; title?: string; storage_path?: string }[];
 };
 
 export type ClientDetail = ClientRecord & {
-  resumes: { id: string; title: string; updatedAt: string | null }[];
+  resumes: {
+    id: string;
+    title: string;
+    updatedAt: string | null;
+    /** Present when the file lives in storage and can be opened via signed URL */
+    storagePath?: string | null;
+  }[];
 };
 
 export type ConsultStat = { label: string; value: string; delta: string };
@@ -190,6 +200,8 @@ export const endpoints = {
   clients: (search?: string) =>
     `/clients${search ? `?search=${encodeURIComponent(search)}` : ""}`,
   client: (key: string) => `/clients/${encodeURIComponent(key)}`,
+  resumeUrl: (key: string, path: string) =>
+    `/clients/${encodeURIComponent(key)}/resume-url?path=${encodeURIComponent(path)}`,
   stats: "/stats",
   profile: "/profile",
 };

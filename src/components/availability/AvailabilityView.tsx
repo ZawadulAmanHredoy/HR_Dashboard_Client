@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Segmented } from "@/components/ui/Segmented";
 import { CalendarMonth } from "@/components/availability/CalendarMonth";
 import { DayEditor } from "@/components/availability/DayEditor";
@@ -48,8 +48,12 @@ export function AvailabilityView() {
   }) => {
     setBusy(true);
     try {
-      await api.post("/availability/slots", payload);
+      const result = await api.post<{ created?: number; skipped?: number }>(
+        "/availability/slots",
+        payload,
+      );
       refresh();
+      return result;
     } finally {
       setBusy(false);
     }
@@ -70,6 +74,15 @@ export function AvailabilityView() {
     const dayNumber = Number(selectedDate.slice(8, 10));
     return data?.days.find((entry) => entry.day === dayNumber) ?? null;
   })();
+
+  // The day editor sits below the calendar; glide it into view as soon as a
+  // date is picked so the "Add slot" form is never lost under the fold.
+  const editorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selectedDay) {
+      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedDay?.date]);
 
   return (
     <div className="space-y-5">
@@ -100,13 +113,15 @@ export function AvailabilityView() {
               onSelect={setSelectedDate}
             />
             {selectedDay && (
-              <DayEditor
-                day={selectedDay}
-                busy={busy}
-                onCreate={createSlot}
-                onDelete={deleteSlot}
-                onToggleHoliday={toggleHoliday}
-              />
+              <div ref={editorRef} className="scroll-mt-4">
+                <DayEditor
+                  day={selectedDay}
+                  busy={busy}
+                  onCreate={createSlot}
+                  onDelete={deleteSlot}
+                  onToggleHoliday={toggleHoliday}
+                />
+              </div>
             )}
           </div>
           <UpcomingPanel />

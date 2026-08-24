@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Menu } from "@/components/ui/Menu";
 import { Segmented } from "@/components/ui/Segmented";
@@ -32,6 +32,8 @@ export function DashboardView() {
   const [selected, setSelected] = useState(MONTH_OPTIONS[1]);
   const { month, year } = selected;
   const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Appointment | null>(null);
+  const [noteTarget, setNoteTarget] = useState<Appointment | null>(null);
 
   const { data, loading, error, refresh } = useApi<Appointment[]>(
     endpoints.appointments({ status: tab, year, month: month + 1 }),
@@ -51,6 +53,22 @@ export function DashboardView() {
 
   const cancelAppointment = async (id: string) => {
     await api.patch(`/appointments/${id}`, { status: "cancelled" });
+    refresh();
+  };
+
+  /** After create/edit, jump the picker to that appointment's month + tab. */
+  const handleSaved = (saved: Appointment) => {
+    const existing = MONTH_OPTIONS.find(
+      (option) => option.month === saved.month && option.year === saved.year,
+    );
+    setSelected(
+      existing ?? {
+        label: `${MONTHS_SHORT[saved.month]} ${String(saved.year).slice(2)}`,
+        month: saved.month,
+        year: saved.year,
+      },
+    );
+    setTab(saved.status === "cancelled" ? "cancelled" : "upcoming");
     refresh();
   };
 
@@ -75,7 +93,9 @@ export function DashboardView() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-ink-100">
+      {/* No overflow-hidden here: the Edit menu must be able to render
+          outside the card bounds without being clipped. */}
+      <div className="rounded-2xl border border-ink-100">
         {loading ? (
           <ul>
             {[0, 1, 2].map((row) => (
@@ -186,26 +206,34 @@ export function DashboardView() {
                       )}
                     </div>
 
-                    <Menu
-                      align="right"
-                      showChevron={false}
-                      className="h-8 gap-2 border border-ink-200 px-3 text-[12px] text-ink-700 hover:border-brand-300 hover:text-brand-600"
-                      label={
-                        <>
-                          Edit
-                          <ChevronDown width={14} height={14} />
-                        </>
-                      }
-                      items={[
-                        { label: "Reschedule" },
-                        { label: "Add note" },
-                        {
-                          label: "Cancel appointment",
-                          danger: true,
-                          onSelect: () => void cancelAppointment(row.id),
-                        },
-                      ]}
-                    />
+                    {row.status !== "cancelled" && (
+                      <Menu
+                        align="right"
+                        showChevron={false}
+                        className="h-8 gap-2 border border-ink-200 px-3 text-[12px] text-ink-700 hover:border-brand-300 hover:text-brand-600"
+                        label={
+                          <>
+                            Edit
+                            <ChevronDown width={14} height={14} />
+                          </>
+                        }
+                        items={[
+                          {
+                            label: "Reschedule",
+                            onSelect: () => setEditTarget(row),
+                          },
+                          {
+                            label: "Add note",
+                            onSelect: () => setNoteTarget(row),
+                          },
+                          {
+                            label: "Cancel appointment",
+                            danger: true,
+                            onSelect: () => void cancelAppointment(row.id),
+                          },
+                        ]}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -215,10 +243,99 @@ export function DashboardView() {
       </div>
 
       <NewAppointmentModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onCreated={refresh}
+        key={editTarget?.id ?? "new"}
+        open={modalOpen || editTarget !== null}
+        onClose={() => {
+          setModalOpen(false);
+          setEditTarget(null);
+        }}
+        onCreated={handleSaved}
+        appointment={editTarget}
       />
+
+      {noteTarget ? (
+        <NoteModal
+          target={noteTarget}
+          onClose={() => setNoteTarget(null)}
+          onSaved={() => {
+            setNoteTarget(null);
+            refresh();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** Small dialog for the "Add note" action on an appointment row. */
+function NoteModal({
+  target,
+  onClose,
+  onSaved,
+}: {
+  target: Appointment;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await api.patch(`/appointments/${target.id}`, {
+        note: String(new FormData(event.currentTarget).get("note") ?? ""),
+      });
+      onSaved();
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error ? saveError.message : "Could not save",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        aria-label="Close"
+        className="absolute inset-0 bg-ink-900/40 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add note"
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-pop"
+      >
+        <h2 className="text-[17px] font-semibold text-ink-900">Add note</h2>
+        <p className="mt-1 text-[13px] text-ink-500">
+          Private note for {target.client}&apos;s appointment.
+        </p>
+
+        <form className="mt-5 space-y-4" onSubmit={handleSave}>
+          <textarea
+            name="note"
+            rows={4}
+            autoFocus
+            defaultValue={target.note ?? ""}
+            placeholder="e.g. Discussed internship plan, follow up next month"
+            className="w-full rounded-xl border border-ink-200 p-3 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400"
+          />
+          {error ? <p className="text-[12px] text-rose-600">{error}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save note"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

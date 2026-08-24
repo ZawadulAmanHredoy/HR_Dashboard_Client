@@ -162,15 +162,15 @@ export function SparkIcon(p: IconProps) {
   );
 }
 
-export function LogoMark(p: IconProps) {
+export function LogoMark({ className, width = 32, height = 32 }: IconProps) {
+  // Shared brand asset with the client app (public/brand_logo.svg).
   return (
-    <svg viewBox="0 0 32 32" width={32} height={32} fill="none" {...p}>
-      <rect width="32" height="32" rx="9" fill="currentColor" />
-      <path
-        d="M11.4 21.5 15.2 10h2.4l3.8 11.5h-2.4l-.8-2.6h-3.9l-.8 2.6h-2.1Zm3.5-4.4h2.7l-1.3-4.3-1.4 4.3Z"
-        fill="#fff"
-      />
-    </svg>
+    <img
+      src="/brand_logo.svg"
+      alt=""
+      className={className}
+      style={{ width, height, objectFit: "contain" }}
+    />
   );
 }
 

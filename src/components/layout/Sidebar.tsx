@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/cn";
-import { Button } from "@/components/ui/Button";
 import {
   CalendarIcon,
   FolderIcon,
@@ -68,29 +67,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           Logout
         </button>
       </nav>
-
-      <div className="p-4">
-        <div className="relative overflow-hidden rounded-2xl bg-ink-900 px-4 pb-4 pt-3 text-white">
-          <div className="absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brand-500/40 blur-2xl" />
-          <img
-            src="/consultant.svg"
-            alt=""
-            width={110}
-            height={132}
-            className="mx-auto -mb-1 h-[104px] w-auto"
-          />
-          <p className="relative text-center text-[13px] font-semibold leading-snug">
-            Get faster
-            <br />
-            and better
-            <br />
-            Service
-          </p>
-          <Button size="sm" className="relative mt-3 w-full">
-            Go Pro
-          </Button>
-        </div>
-      </div>
     </aside>
   );
 }

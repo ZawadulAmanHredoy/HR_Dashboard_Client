@@ -26,7 +26,37 @@ export function Menu({
   onSelect?: (item: MenuItem) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Flip the panel above the trigger when the space below is too tight —
+  // measured against both the viewport and any clipping ancestor
+  // (overflow-hidden/auto card) so the options can never be cut off.
+  const [dropUp, setDropUp] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+
+  const toggle = () => {
+    if (!open && root.current) {
+      const rect = root.current.getBoundingClientRect();
+      const needed = items.length * 38 + 16;
+
+      let limitBottom = window.innerHeight;
+      let limitTop = 0;
+      let node: HTMLElement | null = root.current.parentElement;
+      while (node) {
+        const style = getComputedStyle(node);
+        if (/(hidden|clip|auto|scroll)/.test(style.overflow + style.overflowX)) {
+          const box = node.getBoundingClientRect();
+          limitBottom = Math.min(limitBottom, box.bottom);
+          limitTop = Math.max(limitTop, box.top);
+          break;
+        }
+        node = node.parentElement;
+      }
+
+      const roomBelow = limitBottom - rect.bottom;
+      const roomAbove = rect.bottom - rect.height - limitTop;
+      setDropUp(roomBelow < needed && roomAbove > needed);
+    }
+    setOpen((v) => !v);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -50,7 +80,7 @@ export function Menu({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
           className,
@@ -70,7 +100,8 @@ export function Menu({
         <div
           role="menu"
           className={cn(
-            "absolute z-30 mt-2 min-w-[160px] overflow-hidden rounded-xl border border-ink-100 bg-white py-1 shadow-pop",
+            "absolute z-30 min-w-[160px] overflow-hidden rounded-xl border border-ink-100 bg-white py-1 shadow-pop",
+            dropUp ? "bottom-full mb-2" : "mt-2",
             align === "right" ? "right-0" : "left-0",
             panelClassName,
           )}

@@ -91,9 +91,18 @@ export default function ClientRecordsPage() {
                       to={`/client-records/${encodeURIComponent(client.id)}`}
                       className="flex items-center gap-3"
                     >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-[11px] font-semibold text-brand-600">
-                        {initials(client.name)}
-                      </span>
+                      {client.avatarUrl ? (
+                        <img
+                          src={client.avatarUrl}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          className="h-8 w-8 shrink-0 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[11px] font-semibold text-brand-600">
+                          {initials(client.name)}
+                        </span>
+                      )}
                       <div>
                         <p className="text-[13px] font-medium text-ink-900">
                           {client.name}

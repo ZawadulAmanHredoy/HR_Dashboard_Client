@@ -1,9 +1,9 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PlusIcon } from "@/components/icons";
 import { usePageTitle } from "@/hooks/useApi";
-import { api, type Profile } from "@/lib/api";
+import { API_BASE_URL, api, type Profile } from "@/lib/api";
 import { FALLBACK_PROFILE, useProfile } from "@/context/profile-context";
 
 const field =
@@ -27,6 +27,41 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Profile picture upload state.
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  useEffect(() => {
+    if (profile) setAvatarUrl(profile.avatarUrl);
+  }, [profile]);
+
+  const uploadAvatar = async (file: File) => {
+    setAvatarError(null);
+    setUploadingAvatar(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      // api() speaks JSON, so the multipart call goes through fetch directly.
+      const response = await fetch(`${API_BASE_URL}/profile/avatar`, {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error ?? "Upload failed");
+      }
+      setAvatarUrl((payload as { data: { url: string } }).data.url);
+    } catch (uploadError_) {
+      setAvatarError(
+        uploadError_ instanceof Error ? uploadError_.message : "Upload failed",
+      );
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   // Repeating sections are React state; the flat fields ride on the form itself.
   const [languages, setLanguages] = useState<string[]>([]);
@@ -113,10 +148,21 @@ export default function ProfilePage() {
     <form key={user.id} className="space-y-5 pb-4" onSubmit={handleSubmit}>
       {/* ------------------------------------------------ Contact information */}
       <Section title="Contact information">
-        <div className="mb-5 flex items-center gap-4">
-          {user.avatarUrl ? (
+        <div className="mb-5 flex flex-wrap items-center gap-4">
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void uploadAvatar(file);
+            }}
+          />
+          {avatarUrl ? (
             <img
-              src={user.avatarUrl}
+              src={avatarUrl}
               alt=""
               className="h-16 w-16 rounded-full object-cover"
               referrerPolicy="no-referrer"
@@ -129,8 +175,19 @@ export default function ProfilePage() {
           <div>
             <p className="text-[12.5px] font-medium text-ink-900">Profile image</p>
             <p className="text-[11.5px] text-ink-400">
-              Taken from your Google account.
+              JPG, PNG or WebP, up to 2 MB.
             </p>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="mt-1 rounded-lg border border-ink-200 px-3 py-1 text-[11.5px] font-medium text-brand-500 transition-colors hover:border-brand-300 hover:text-brand-600 disabled:opacity-50"
+            >
+              {uploadingAvatar ? "Uploading..." : "Change photo"}
+            </button>
+            {avatarError ? (
+              <p className="mt-1 text-[11.5px] text-rose-600">{avatarError}</p>
+            ) : null}
           </div>
         </div>
 
