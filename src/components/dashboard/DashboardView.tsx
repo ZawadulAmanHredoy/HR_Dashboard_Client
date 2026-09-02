@@ -223,7 +223,7 @@ function Overview() {
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
                     {item.label}
                   </p>
-                  <h3 className="text-3xl font-bold text-slate-800">{item.value}</h3>
+                  <h3 className="text-2xl font-bold text-slate-800">{item.value}</h3>
                 </div>
               </div>
               <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">

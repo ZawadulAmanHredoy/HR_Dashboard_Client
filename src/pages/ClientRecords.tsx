@@ -121,7 +121,7 @@ export default function ClientRecordsPage() {
           Manage and view all client records
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-bold text-ink-900">Client Records</h1>
+          <h1 className="text-2xl font-bold text-ink-900">Client Records</h1>
           {tab !== "All" ? (
             <label className="relative sm:w-72">
               <Search
@@ -190,7 +190,7 @@ export default function ClientRecordsPage() {
                     key={stat.label}
                     className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm"
                   >
-                    <p className="text-3xl font-bold text-ink-900">{stat.value}</p>
+                    <p className="text-2xl font-bold text-ink-900">{stat.value}</p>
                     <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-ink-400">
                       {stat.label}
                     </p>
@@ -201,7 +201,7 @@ export default function ClientRecordsPage() {
           {/* Client table */}
           <div className="rounded-[2rem] border border-ink-100 bg-white p-8 shadow-sm">
             <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold text-ink-900">Client Records</h2>
+              <h2 className="text-xl font-bold text-ink-900">Client Records</h2>
               <div className="flex flex-wrap items-center gap-4">
                 <div className="relative">
                   <Search

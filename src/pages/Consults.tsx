@@ -81,7 +81,7 @@ export default function ConsultsPage() {
           : (stats.data ?? []).map((stat) => (
               <Card key={stat.label} className="p-5">
                 <p className="text-[12px] text-ink-500">{stat.label}</p>
-                <p className="mt-2 text-[26px] font-semibold leading-none text-ink-900">
+                <p className="mt-2 text-2xl font-semibold leading-none text-ink-900">
                   {stat.value}
                 </p>
                 <p className="mt-2 text-[11px] text-brand-500">{stat.delta}</p>
@@ -94,7 +94,7 @@ export default function ConsultsPage() {
           Manage and view all your consult sessions
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-bold text-ink-900">Consult History</h1>
+          <h1 className="text-2xl font-bold text-ink-900">Consult History</h1>
           <label className="relative sm:w-72">
             <SearchIcon
               width={16}
