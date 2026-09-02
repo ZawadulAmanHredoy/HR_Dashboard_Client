@@ -32,7 +32,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex items-center gap-2 px-6 py-6">
         <LogoMark className="text-brand-500" width={28} height={28} />
         <span className="text-[15px] font-semibold tracking-tight text-ink-900">
-          AI CV MAKER
+          AI CAREER ADVISOR
         </span>
       </div>
 

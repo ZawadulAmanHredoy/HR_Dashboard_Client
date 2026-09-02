@@ -53,7 +53,7 @@ export default function LoginPage() {
         <div className="relative flex items-center gap-2">
           <LogoMark className="text-brand-500" width={30} height={30} />
           <span className="text-[15px] font-semibold tracking-tight">
-            AI CV MAKER
+            AI CAREER ADVISOR
           </span>
         </div>
 
@@ -82,7 +82,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-2 lg:hidden">
             <LogoMark className="text-brand-500" width={26} height={26} />
             <span className="text-[14px] font-semibold tracking-tight text-ink-900">
-              AI CV MAKER
+              AI CAREER ADVISOR
             </span>
           </div>
 
@@ -151,7 +151,7 @@ export default function LoginPage() {
           ) : null}
 
           <p className="mt-8 text-center text-[11px] leading-relaxed text-ink-400">
-            By continuing you agree to the AI CV Maker terms of service and
+            By continuing you agree to the AI Career Advisor terms of service and
             privacy policy.
           </p>
         </div>

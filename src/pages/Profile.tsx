@@ -69,6 +69,7 @@ export default function ProfilePage() {
   const [education, setEducation] = useState<EducationRow[]>([]);
   const [awards, setAwards] = useState<DatedRow[]>([]);
   const [certifications, setCertifications] = useState<DatedRow[]>([]);
+  const [experience, setExperience] = useState<Profile["experience"]>([]);
 
   useEffect(() => {
     if (!profile) return;
@@ -76,6 +77,7 @@ export default function ProfilePage() {
     setEducation(profile.education ?? []);
     setAwards(profile.awards ?? []);
     setCertifications(profile.certifications ?? []);
+    setExperience(profile.experience ?? []);
   }, [profile]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -125,6 +127,7 @@ export default function ProfilePage() {
         education,
         awards,
         certifications,
+        experience,
       });
       refresh();
       setSaved(true);
@@ -261,6 +264,44 @@ export default function ProfilePage() {
           name="featureOnWebsite"
           label="Feature On Website"
           defaultChecked={user.featureOnWebsite}
+        />
+      </Section>
+
+      {/* -------------------------------------------- Work Experience */}
+      <Section title="Work Experience">
+        <RepeatingRows
+          rows={experience}
+          onChange={setExperience}
+          blank={{ position: "", company: "", from: "", to: "" }}
+          columns="sm:grid-cols-[1fr_1fr_auto_auto]"
+          render={(row, update) => (
+            <>
+              <input
+                className={field}
+                placeholder="Position / Role"
+                value={row.position}
+                onChange={(e) => update({ position: e.target.value })}
+              />
+              <input
+                className={field}
+                placeholder="Company / Organization"
+                value={row.company}
+                onChange={(e) => update({ company: e.target.value })}
+              />
+              <input
+                className={field}
+                type="date"
+                value={row.from}
+                onChange={(e) => update({ from: e.target.value })}
+              />
+              <input
+                className={field}
+                type="date"
+                value={row.to}
+                onChange={(e) => update({ to: e.target.value })}
+              />
+            </>
+          )}
         />
       </Section>
 

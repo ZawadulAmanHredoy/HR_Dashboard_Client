@@ -59,4 +59,5 @@ export const FALLBACK_PROFILE: Profile = {
   education: [],
   awards: [],
   certifications: [],
+  experience: [],
 };

@@ -52,6 +52,6 @@ export function useApi<T>(path: string) {
 
 export function usePageTitle(title: string) {
   useEffect(() => {
-    document.title = `${title} | AI CV Maker`;
+    document.title = `${title} | AI Career Advisor`;
   }, [title]);
 }

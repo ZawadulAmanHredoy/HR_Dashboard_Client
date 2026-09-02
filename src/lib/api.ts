@@ -181,6 +181,7 @@ export type Profile = {
   education: { degree: string; university: string; from: string; to: string }[];
   awards: { name: string; date: string }[];
   certifications: { name: string; date: string }[];
+  experience: { position: string; company: string; from: string; to: string }[];
 };
 
 /* --------------------------------------------------------------- endpoints */
