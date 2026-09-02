@@ -1,11 +1,34 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import {
+  Users,
+  Calendar,
+  Clock,
+  Activity,
+  Download,
+  Plus,
+  Filter,
+  Eye,
+  Edit3,
+  MoreVertical,
+  TrendingUp,
+  ChevronDown as ChevronIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Menu } from "@/components/ui/Menu";
 import { Segmented } from "@/components/ui/Segmented";
 import { ChevronDown, DocIcon, UserIcon, VideoIcon } from "@/components/icons";
 import { NewAppointmentModal } from "@/components/dashboard/NewAppointmentModal";
 import { useApi } from "@/hooks/useApi";
-import { api, endpoints, type Appointment, type AppointmentStatus } from "@/lib/api";
+import {
+  api,
+  endpoints,
+  type Appointment,
+  type AppointmentStatus,
+  type ClientRecord,
+  type ConsultStat,
+} from "@/lib/api";
 import { MONTHS, MONTHS_SHORT, weekdayShort } from "@/lib/date";
 
 const TABS = [
@@ -27,7 +50,482 @@ const MONTH_OPTIONS = [-1, 0, 1, 2].map((offset) => {
   };
 });
 
+const CLIENT_STATUS_TONE = {
+  Stable: "green",
+  "Follow-up": "amber",
+  Closed: "gray",
+} as const;
+
 export function DashboardView() {
+  const [view, setView] = useState<"clients" | "appointments">("clients");
+
+  return view === "clients" ? (
+    <Overview onOpenAppointments={() => setView("appointments")} />
+  ) : (
+    <AppointmentSchedule onShowOverview={() => setView("clients")} />
+  );
+}
+
+/* ---------------------------------------------------------- clients overview */
+
+function Overview({
+  onOpenAppointments,
+}: {
+  onOpenAppointments: () => void;
+}) {
+  const now = new Date();
+
+  const { data: clientsData } = useApi<ClientRecord[]>(endpoints.clients());
+  const { data: statsData } = useApi<ConsultStat[]>(endpoints.stats);
+  const { data: monthRows } = useApi<Appointment[]>(
+    endpoints.appointments({
+      status: "upcoming",
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+    }),
+  );
+
+  const clients = clientsData ?? [];
+  const stats = statsData ?? [];
+  const upcoming = monthRows ?? [];
+
+  const todays = upcoming.filter(
+    (row) => row.month === now.getMonth() && row.day === now.getDate(),
+  );
+  const activeCases = clients.filter((client) => client.status !== "Closed").length;
+
+  const tileOf = (index: number) => stats[index] ?? { label: "—", value: "—", delta: "" };
+  const totalConsults = tileOf(0);
+  const hoursDelivered = tileOf(1);
+  const avgRating = tileOf(2);
+  const repeatClients = tileOf(3);
+
+  const analytics = [
+    {
+      label: "Total Consults",
+      value: totalConsults.value,
+      sub: totalConsults.delta,
+      color: "bg-indigo-500",
+    },
+    {
+      label: "Repeat Clients",
+      value: repeatClients.value,
+      sub: repeatClients.delta,
+      color: "bg-green-500",
+    },
+    {
+      label: "Avg. Rating",
+      value: avgRating.value,
+      sub: avgRating.delta,
+      color: "bg-cyan-400",
+    },
+  ];
+
+  const todayLabel = now.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+
+  const schedule = [
+    { label: "Morning", count: todays.filter((r) => periodOf(r.start) === "Morning").length },
+    { label: "Afternoon", count: todays.filter((r) => periodOf(r.start) === "Afternoon").length },
+    { label: "Evening", count: todays.filter((r) => periodOf(r.start) === "Evening").length },
+  ];
+
+  const miniStats: {
+    title: string;
+    value: string;
+    change: string;
+    trend: "up" | "down";
+    icon: typeof Users;
+  }[] = [
+    {
+      title: "Total Clients",
+      value: clients.length.toLocaleString(),
+      change: `${activeCases} active`,
+      trend: "up",
+      icon: Users,
+    },
+    {
+      title: "Today's Appointments",
+      value: String(todays.length),
+      change: `${upcoming.length} this month`,
+      trend: "up",
+      icon: Calendar,
+    },
+    {
+      title: "Active Cases",
+      value: String(activeCases),
+      change: `${clients.length} registered`,
+      trend: "up",
+      icon: Activity,
+    },
+    {
+      title: "Hours Delivered",
+      value: hoursDelivered.value,
+      change: hoursDelivered.delta,
+      trend: "up",
+      icon: Clock,
+    },
+  ];
+
+  const activity: { color: string; title: string; time: string }[] = [];
+  for (const client of clients.slice(0, 2)) {
+    activity.push({
+      color: "bg-indigo-500",
+      title: "New client registered",
+      time: client.lastSeen || "—",
+    });
+  }
+  for (const row of upcoming.slice(0, 3)) {
+    activity.push({
+      color: "bg-amber-400",
+      title: `Appointment booked · ${row.client}`,
+      time: `${row.day} ${MONTHS_SHORT[row.month]}, ${row.start}`,
+    });
+  }
+
+  return (
+    <div className="min-h-screen p-0 font-sans text-slate-800 sm:p-8">
+      {/* Top header section */}
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white"
+          >
+            Clients
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAppointments}
+            className="rounded-lg px-6 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            Appointments
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <span className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600">
+            {todayLabel} <ChevronIcon size={16} className="text-slate-400" />
+          </span>
+          <button
+            type="button"
+            onClick={() => exportClients(clients)}
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50"
+          >
+            <Download size={16} /> Export
+          </button>
+          <Link
+            to="/client-records"
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-200 transition-colors hover:bg-indigo-700"
+          >
+            <Plus size={16} /> Add Client
+          </Link>
+        </div>
+      </div>
+
+      {/* Monthly analytics overview card */}
+      <div className="mb-8 rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-2xl font-bold">
+              <TrendingUp className="text-indigo-500" size={24} /> Monthly Analytics Overview
+            </h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Insights for {MONTHS[now.getMonth()]} {now.getFullYear()}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenAppointments}
+            className="text-sm font-semibold text-indigo-600 hover:underline"
+          >
+            View Schedule
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
+          {analytics.map((item) => (
+            <div key={item.label}>
+              <div className="mb-2 flex justify-between items-end">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                    {item.label}
+                  </p>
+                  <h3 className="text-3xl font-bold text-slate-800">{item.value}</h3>
+                </div>
+              </div>
+              <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={`h-full ${item.color}`}
+                  style={{ width: `${barWidth(item.value)}%` }}
+                />
+              </div>
+              <p className="text-[11px] font-medium text-slate-400">{item.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 4-column mini stats */}
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {miniStats.map(({ title, value, change, trend, icon: Icon }) => (
+          <div
+            key={title}
+            className="flex items-start justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+          >
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                {title}
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-slate-800">{value}</h3>
+              <p
+                className={`mt-2 text-xs font-bold ${trend === "up" ? "text-green-500" : "text-red-400"}`}
+              >
+                {trend === "up" ? "↑" : "↓"} {change}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-indigo-50 p-3">
+              <Icon size={20} className="text-indigo-500" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Three-column info */}
+      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 font-bold text-slate-700">
+            <Calendar size={18} className="text-indigo-500" /> Today&apos;s Schedule
+          </div>
+          {todays.length === 0 ? (
+            <p className="py-4 text-sm text-slate-400">No appointments today.</p>
+          ) : (
+            <div className="space-y-4">
+              {schedule.map((item) => (
+                <ScheduleItem key={item.label} label={item.label} count={`${item.count} client${item.count === 1 ? "" : "s"}`} />
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={onOpenAppointments}
+            className="mt-6 w-full rounded-xl bg-slate-50 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+          >
+            View Full Schedule
+          </button>
+        </section>
+
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 font-bold text-slate-700">
+            <Activity size={18} className="text-cyan-500" /> Recent Activity
+          </div>
+          <div className="space-y-6">
+            {activity.length === 0 ? (
+              <p className="text-sm text-slate-400">No activity yet.</p>
+            ) : (
+              activity.map((item, index) => (
+                <ActivityItem key={index} color={item.color} title={item.title} time={item.time} />
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 font-bold text-slate-700">
+            <TrendingUp size={18} className="text-green-500" /> Performance
+          </div>
+          <div className="space-y-4 text-sm">
+            <PerformanceRow label="Total Consults" val={totalConsults.value} color="text-green-500" />
+            <PerformanceRow label="Hours Delivered" val={hoursDelivered.value} color="text-green-500" />
+            <PerformanceRow label="Repeat Clients" val={repeatClients.value} color="text-indigo-500" />
+          </div>
+          <button
+            type="button"
+            onClick={onOpenAppointments}
+            className="mt-6 w-full rounded-xl bg-slate-50 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+          >
+            View Analytics
+          </button>
+        </section>
+      </div>
+
+      {/* Client records table */}
+      <div className="rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-bold">Client Records</h2>
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            <Filter size={16} /> Advanced Filters
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-left">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <th className="px-4 pb-4 font-semibold">Client</th>
+                <th className="pb-4 font-semibold">ID</th>
+                <th className="pb-4 font-semibold">Age</th>
+                <th className="pb-4 font-semibold">Issue</th>
+                <th className="pb-4 text-center font-semibold">Status</th>
+                <th className="pb-4 font-semibold">Last Consult</th>
+                <th className="pb-4 text-right font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {clients.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-14 text-center text-slate-400">
+                    No clients yet — they appear here once somebody books you.
+                  </td>
+                </tr>
+              ) : (
+                clients.map((client) => (
+                  <ClientRow key={client.id} client={client} />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientRow({ client }: { client: ClientRecord }) {
+  return (
+    <tr className="group border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50/50">
+      <td className="flex items-center gap-3 px-4 py-5">
+        {client.avatarUrl ? (
+          <img
+            src={client.avatarUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+            className="h-10 w-10 shrink-0 rounded-xl object-cover"
+          />
+        ) : (
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-xs font-bold text-indigo-600">
+            {initials(client.name)}
+          </span>
+        )}
+        <div>
+          <p className="font-bold text-slate-700">{client.name}</p>
+          <p className="text-xs text-slate-400">{client.email || "No account"}</p>
+        </div>
+      </td>
+      <td className="py-5 font-medium text-slate-500">{client.code ?? "—"}</td>
+      <td className="py-5 font-medium text-slate-500">
+        {client.age != null ? `${client.age} yrs` : "—"}
+      </td>
+      <td className="py-5 font-bold text-slate-700">{client.issue || "—"}</td>
+      <td className="py-5 text-center">
+        <Badge tone={CLIENT_STATUS_TONE[client.status] ?? "gray"}>{client.status}</Badge>
+      </td>
+      <td className="py-5 font-medium text-slate-500">{client.lastSeen || "—"}</td>
+      <td className="py-5 text-right">
+        <div className="flex justify-end gap-1 text-slate-400">
+          <Link to={`/client-records/${encodeURIComponent(client.id)}`} className="p-1 transition-colors hover:text-indigo-600">
+            <Eye size={18} />
+          </Link>
+          <Link to={`/client-records/${encodeURIComponent(client.id)}`} className="p-1 transition-colors hover:text-indigo-600">
+            <Edit3 size={18} />
+          </Link>
+          <button type="button" className="p-1 transition-colors hover:text-slate-600">
+            <MoreVertical size={18} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ScheduleItem({ label, count }: { label: string; count: string }) {
+  return (
+    <div className="flex justify-between border-b border-slate-50 py-1 text-sm last:border-0">
+      <span className="font-medium text-slate-500">{label}</span>
+      <span className="font-bold text-slate-700">{count}</span>
+    </div>
+  );
+}
+
+function ActivityItem({ color, title, time }: { color: string; title: string; time: string }) {
+  return (
+    <div className="flex items-start gap-4">
+      <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${color} shadow-[0_0_8px_rgba(0,0,0,0.1)]`} />
+      <div>
+        <p className="text-sm font-semibold text-slate-700">{title}</p>
+        <p className="mt-0.5 text-xs text-slate-400">{time}</p>
+      </div>
+    </div>
+  );
+}
+
+function PerformanceRow({ label, val, color }: { label: string; val: string; color: string }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className="font-medium text-slate-500">{label}</span>
+      <span className={`font-bold ${color}`}>{val}</span>
+    </div>
+  );
+}
+
+function periodOf(start: string) {
+  const hour = parseInt(String(start).split(":")[0] ?? "0", 10);
+  if (hour < 12) return "Morning";
+  if (hour < 17) return "Afternoon";
+  return "Evening";
+}
+
+function barWidth(value: string) {
+  const number = parseFloat(String(value).replace(/[^0-9.]/g, ""));
+  if (Number.isNaN(number)) return 70;
+  return Math.min(95, Math.max(15, number));
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function exportClients(clients: ClientRecord[]) {
+  const rows = [
+    ["Client", "ID", "Email", "Issue", "Status", "Sessions", "Last consult"],
+    ...clients.map((client) => [
+      client.name,
+      client.code ?? "",
+      client.email,
+      client.issue ?? "",
+      client.status,
+      String(client.sessions),
+      client.lastSeen,
+    ]),
+  ];
+  const csv = rows
+    .map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+    )
+    .join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "clients.csv";
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ------------------------------------------------- on the "appointments" view */
+
+function AppointmentSchedule({ onShowOverview }: { onShowOverview: () => void }) {
   const [tab, setTab] = useState<AppointmentStatus>("upcoming");
   const [selected, setSelected] = useState(MONTH_OPTIONS[1]);
   const { month, year } = selected;
@@ -75,7 +573,16 @@ export function DashboardView() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Segmented options={TABS} value={tab} onChange={(value) => setTab(value)} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented options={TABS} value={tab} onChange={(value) => setTab(value)} />
+          <button
+            type="button"
+            onClick={onShowOverview}
+            className="text-[13px] font-medium text-brand-500 hover:text-brand-600"
+          >
+            ← Back to dashboard
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
           <Menu
