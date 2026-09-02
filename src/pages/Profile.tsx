@@ -272,7 +272,7 @@ export default function ProfilePage() {
         <RepeatingRows
           rows={experience}
           onChange={setExperience}
-          blank={{ position: "", company: "", from: "", to: "" }}
+          blank={{ position: "", company: "", from: "", to: "", description: "" }}
           columns="sm:grid-cols-[1fr_1fr_auto_auto]"
           render={(row, update) => (
             <>
@@ -299,6 +299,13 @@ export default function ProfilePage() {
                 type="date"
                 value={row.to}
                 onChange={(e) => update({ to: e.target.value })}
+              />
+              <textarea
+                rows={2}
+                placeholder="Describe what you did in this role"
+                value={row.description}
+                onChange={(e) => update({ description: e.target.value })}
+                className="w-full rounded-xl border border-ink-200 p-3 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400 sm:col-span-4"
               />
             </>
           )}
