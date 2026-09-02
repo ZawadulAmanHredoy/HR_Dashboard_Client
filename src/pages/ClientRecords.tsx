@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Clock, FileText, User } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
 import { SearchIcon } from "@/components/icons";
 import { useApi, usePageTitle } from "@/hooks/useApi";
-import { endpoints, type ClientRecord } from "@/lib/api";
+import { endpoints, type Appointment } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 export const CLIENT_STATUS_TONE = {
@@ -27,48 +28,49 @@ const yesterday = new Date();
 yesterday.setDate(yesterday.getDate() - 1);
 const YESTERDAY_KEY = keyOf(yesterday);
 
-function consultDay(iso: string | null | undefined) {
-  if (!iso) return null;
-  const year = Number(iso.slice(0, 4));
-  const month = Number(iso.slice(5, 7));
-  const day = Number(iso.slice(8, 10));
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-}
-
-/** `lastConsult` is "YYYY-MM-DD", so the relative-tab filters are plain string compares. */
-function matchesTab(iso: string | null | undefined, tab: Tab) {
-  const key = iso ? iso.slice(0, 10) : null;
-  if (!key) return tab === "All";
+/** Appointments carry an ISO "YYYY-MM-DD" date, so the relative tabs are string compares. */
+function matchesTab(date: string, tab: Tab) {
   switch (tab) {
     case "Today":
-      return key === TODAY_KEY;
+      return date === TODAY_KEY;
     case "Yesterday":
-      return key === YESTERDAY_KEY;
+      return date === YESTERDAY_KEY;
     case "Past":
-      return key < YESTERDAY_KEY;
+      return date < YESTERDAY_KEY;
     default:
       return true;
   }
 }
 
+function dayParts(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const parsed = new Date(year, month - 1, day);
+  return {
+    weekday: parsed.toLocaleDateString("en-US", { weekday: "short" }),
+    day,
+  };
+}
+
 export default function ClientRecordsPage() {
   usePageTitle("Client Records");
 
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("All");
+  const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(search.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [search]);
+  const { data, loading, error } = useApi<Appointment[]>(endpoints.appointments({}));
 
-  const { data, loading, error } = useApi<ClientRecord[]>(endpoints.clients(query));
-  const clients = useMemo(
-    () => (data ?? []).filter((client) => matchesTab(client.lastConsult, tab)),
-    [data, tab],
-  );
+  const records = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data ?? [])
+      .filter((row) => matchesTab(row.date, tab))
+      .filter(
+        (row) =>
+          !q ||
+          row.client.toLowerCase().includes(q) ||
+          row.issue.toLowerCase().includes(q),
+      )
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+  }, [data, tab, search]);
 
   return (
     <div className="space-y-6">
@@ -87,7 +89,7 @@ export default function ClientRecordsPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search clients"
+              placeholder="Search by name or issue"
               className="h-10 w-full rounded-xl border border-ink-200 pl-9 pr-3 text-[13px] outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400"
             />
           </label>
@@ -132,32 +134,32 @@ export default function ClientRecordsPage() {
           <p className="rounded-2xl border border-ink-100 bg-white px-5 py-14 text-center text-[13px] text-rose-600">
             {error}
           </p>
-        ) : clients.length === 0 ? (
+        ) : records.length === 0 ? (
           <p className="rounded-2xl border border-ink-100 bg-white px-5 py-14 text-center text-[13px] text-ink-500">
-            {query
-              ? `No clients match "${query}".`
+            {search
+              ? `No appointments match "${search}".`
               : tab === "All"
-                ? "No clients yet — they appear here once somebody books you."
-                : `No ${tab.toLowerCase()} clients.`}
+                ? "No appointments yet — they appear here once somebody books you."
+                : `No ${tab.toLowerCase()} appointments.`}
           </p>
         ) : (
-          clients.map((client) => {
-            const consult = consultDay(client.lastConsult);
+          records.map((record) => {
+            const { weekday, day } = dayParts(record.date);
+            const cancelled = record.status === "cancelled";
             return (
               <div
-                key={client.id}
-                className="group flex items-center rounded-2xl border border-ink-100 bg-white p-4 transition-shadow duration-300 hover:shadow-card"
+                key={record.id}
+                className={cn(
+                  "group flex items-center rounded-2xl border bg-white p-4 transition-shadow duration-300 hover:shadow-card",
+                  cancelled ? "border-ink-100 opacity-60" : "border-ink-100",
+                )}
               >
                 {/* Date box */}
                 <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-xl bg-canvas">
                   <span className="text-xs font-bold uppercase tracking-wide text-ink-400">
-                    {consult
-                      ? consult.toLocaleDateString("en-US", { weekday: "short" })
-                      : "—"}
+                    {weekday}
                   </span>
-                  <span className="text-2xl font-bold text-ink-900">
-                    {consult ? consult.getDate() : "–"}
-                  </span>
+                  <span className="text-2xl font-bold text-ink-900">{day}</span>
                 </div>
 
                 {/* Divider */}
@@ -169,17 +171,19 @@ export default function ClientRecordsPage() {
                     <div className="flex items-center gap-3 text-ink-500">
                       <Clock size={18} className="text-ink-400" />
                       <span className="text-sm font-medium">
-                        {client.lastSeen || "No consult yet"}
+                        {record.start} - {record.end}
                       </span>
+                      {cancelled ? (
+                        <Badge tone="red" className="ml-1">
+                          Cancelled
+                        </Badge>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-3 text-ink-500">
                       <User size={18} className="text-ink-400" />
-                      <Link
-                        to={`/client-records/${encodeURIComponent(client.id)}`}
-                        className="text-sm font-semibold text-ink-700 transition-colors hover:text-brand-500"
-                      >
-                        {client.name}
-                      </Link>
+                      <span className="text-sm font-semibold text-ink-700">
+                        {record.client}
+                      </span>
                     </div>
                   </div>
 
@@ -187,13 +191,13 @@ export default function ClientRecordsPage() {
                     <div className="text-sm text-ink-500">
                       Issue:
                       <span className="ml-1 font-medium text-ink-700">
-                        {client.issue || "—"}
+                        {record.issue || "—"}
                       </span>
                     </div>
                     <div>
-                      {client.attachments.length > 0 ? (
+                      {record.documents ? (
                         <Link
-                          to={`/client-records/${encodeURIComponent(client.id)}`}
+                          to="/appointments"
                           className="flex items-center gap-1 text-sm font-semibold text-brand-500 hover:underline"
                         >
                           <FileText size={15} /> View Documents
