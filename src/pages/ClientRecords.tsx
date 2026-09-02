@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   Clock,
@@ -11,9 +11,10 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Menu } from "@/components/ui/Menu";
 import { useApi, usePageTitle } from "@/hooks/useApi";
-import { endpoints, type Appointment, type ClientRecord, type ClientStatus } from "@/lib/api";
+import { api, endpoints, type Appointment, type ClientRecord, type ClientStatus } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 export const CLIENT_STATUS_TONE = {
@@ -66,10 +67,14 @@ export default function ClientRecordsPage() {
   const [tab, setTab] = useState<Tab>("All");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ClientStatus>("all");
+  const [adding, setAdding] = useState(false);
 
-  const { data: clientsData, loading: clientsLoading, error: clientsError } = useApi<
-    ClientRecord[]
-  >(endpoints.clients());
+  const {
+    data: clientsData,
+    loading: clientsLoading,
+    error: clientsError,
+    refresh: refreshClients,
+  } = useApi<ClientRecord[]>(endpoints.clients());
 
   const { data: appointmentsData, loading: apptsLoading, error: apptsError } = useApi<
     Appointment[]
@@ -160,14 +165,26 @@ export default function ClientRecordsPage() {
         </div>
 
         {tab === "All" ? (
-          <Link
-            to="/client-records"
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
             className="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600"
           >
             <UserPlus size={18} /> Add New Client
-          </Link>
+          </button>
         ) : null}
       </div>
+
+      <AddClientModal
+        open={adding}
+        onClose={() => setAdding(false)}
+        onCreated={() => {
+          refreshClients();
+          setAdding(false);
+          setSearch("");
+          setStatusFilter("all");
+        }}
+      />
 
       {tab === "All" ? (
         <>
@@ -450,4 +467,137 @@ export function initials(name: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+const modalField =
+  "h-10 w-full rounded-xl border border-ink-200 px-3 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400";
+
+/** Creates a manual client record via POST /clients (no booking required). */
+function AddClientModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) return null;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const age = String(form.get("age") ?? "");
+
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post("/clients", {
+        name: String(form.get("name")),
+        phone: String(form.get("phone") ?? ""),
+        email: String(form.get("email") ?? ""),
+        address: String(form.get("address") ?? ""),
+        jobTitle: String(form.get("jobTitle") ?? ""),
+        age: age ? Number(age) : null,
+        status: String(form.get("status") ?? "Stable"),
+      });
+      onCreated();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        aria-label="Close"
+        className="absolute inset-0 bg-ink-900/40 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add new client"
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-pop max-h-[calc(100dvh-2rem)] overflow-y-auto"
+      >
+        <h2 className="text-[17px] font-semibold text-ink-900">Add New Client</h2>
+        <p className="mt-1 text-[13px] text-ink-500">
+          Manually add a client you consult off the booking site.
+        </p>
+
+        <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-ink-700">
+              Full name <span className="text-rose-500">*</span>
+            </span>
+            <input name="name" required className={modalField} placeholder="Jane Smith" />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-ink-700">
+                Phone
+              </span>
+              <input name="phone" type="tel" className={modalField} />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-ink-700">
+                Age
+              </span>
+              <input name="age" type="number" min={0} max={120} className={modalField} />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-ink-700">
+              Email
+            </span>
+            <input name="email" type="email" className={modalField} />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-ink-700">
+              Address
+            </span>
+            <input name="address" className={modalField} />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-ink-700">
+                Job title
+              </span>
+              <input name="jobTitle" className={modalField} />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-ink-700">
+                Status
+              </span>
+              <select name="status" className={modalField} defaultValue="Stable">
+                {Object.keys(CLIENT_STATUS_TONE).map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {error ? <p className="text-[12px] text-rose-600">{error}</p> : null}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Add client"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
