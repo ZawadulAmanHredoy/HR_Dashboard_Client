@@ -75,6 +75,37 @@ function blankWeek(): Record<Weekday, SlotRow[]> {
   >;
 }
 
+/** Defaults: no day starts out as a day off. */
+function blankOff(): Record<Weekday, boolean> {
+  return Object.fromEntries(WEEKDAYS.map((day) => [day, false])) as Record<Weekday, boolean>;
+}
+
+/** Deletes the recurring slots we published for a weekday over the next 8 weeks. */
+async function clearPublishedSlots(day: Weekday) {
+  const base = new Date(`${nextWeekdayISO(day)}T00:00:00Z`);
+  const monthCache = new Map<string, AvailabilityMonth>();
+  for (let week = 0; week < 8; week += 1) {
+    const date = new Date(base.getTime() + week * 7 * 86400000);
+    const iso = date.toISOString().slice(0, 10);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const cacheKey = `${year}-${month}`;
+    let monthData = monthCache.get(cacheKey);
+    if (!monthData) {
+      monthData = await api.get<AvailabilityMonth>(endpoints.availability(year, month));
+      monthCache.set(cacheKey, monthData);
+    }
+    const entry = monthData.days.find((row) => row.date === iso);
+    for (const slot of entry?.slots ?? []) {
+      try {
+        await api.delete(`/availability/slots/${slot.id}`);
+      } catch {
+        // A slot with an active booking can't be removed — leave it.
+      }
+    }
+  }
+}
+
 export default function ProfilePage() {
   usePageTitle("Profile");
 
@@ -569,6 +600,7 @@ export default function ProfilePage() {
 function AppointmentSchedule() {
   const [activeDay, setActiveDay] = useState<Weekday>("Monday");
   const [schedule, setSchedule] = useState<Record<Weekday, SlotRow[]>>(blankWeek);
+  const [off, setOff] = useState<Record<Weekday, boolean>>(blankOff);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -619,12 +651,22 @@ function AppointmentSchedule() {
   /** Duplicate the active day across the whole week, then publish it. */
   const applyAll = async () => {
     const next = { ...schedule } as Record<Weekday, SlotRow[]>;
-    for (const day of WEEKDAYS) next[day] = [...schedule[activeDay]];
+    const nextOff = { ...off } as Record<Weekday, boolean>;
+    for (const day of WEEKDAYS) {
+      next[day] = [...schedule[activeDay]];
+      nextOff[day] = off[activeDay];
+    }
     setSchedule(next);
+    setOff(nextOff);
     setSaved(false);
     setBusy(true);
     try {
       for (const day of WEEKDAYS) {
+        if (nextOff[day]) {
+          await clearPublishedSlots(day);
+          continue;
+        }
+
         const rows = next[day].filter((row) => row.start && row.end);
         if (!rows.length) continue;
 
@@ -677,9 +719,49 @@ function AppointmentSchedule() {
         ))}
       </div>
 
-      {/* Time slot rows */}
-      <div className="mb-6 space-y-4">
-        {activeRows.map((row, index) => (
+      {/* Day off toggle */}
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={off[activeDay]}
+            onChange={(event) => {
+              setSaved(false);
+              setOff((prev) => ({ ...prev, [activeDay]: event.target.checked }));
+            }}
+            className="peer sr-only"
+          />
+          <span
+            className={cn(
+              "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+              off[activeDay] ? "bg-emerald-500" : "bg-ink-200",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all",
+                off[activeDay] ? "left-[18px]" : "left-0.5",
+              )}
+            />
+          </span>
+          <span className="text-[13px] font-medium text-ink-900">
+            Day off{" "}
+            <span className="font-normal text-ink-400">
+              — no slots published on {activeDay}
+            </span>
+          </span>
+        </label>
+      </div>
+
+      {off[activeDay] ? (
+        <p className="mb-6 rounded-xl border border-dashed border-ink-200 px-4 py-6 text-center text-sm text-ink-400">
+          {activeDay} is a day off. Existing published slots for the next 8 weeks will be
+          removed when you save.
+        </p>
+      ) : (
+        /* Time slot rows */
+        <div className="mb-6 space-y-4">
+          {activeRows.map((row, index) => (
           <div key={index} className="flex flex-col items-end gap-3 md:flex-row md:items-end">
             <div className="w-full md:flex-1">
               {index === 0 ? (
@@ -725,7 +807,8 @@ function AppointmentSchedule() {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <button
