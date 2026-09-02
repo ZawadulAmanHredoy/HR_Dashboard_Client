@@ -56,22 +56,16 @@ const CLIENT_STATUS_TONE = {
 } as const;
 
 export function DashboardView() {
-  const [view, setView] = useState<"clients" | "appointments">("clients");
+  return <Overview />;
+}
 
-  return view === "clients" ? (
-    <Overview onOpenAppointments={() => setView("appointments")} />
-  ) : (
-    <AppointmentSchedule onShowOverview={() => setView("clients")} />
-  );
+export function AppointmentsView() {
+  return <AppointmentSchedule />;
 }
 
 /* ---------------------------------------------------------- clients overview */
 
-function Overview({
-  onOpenAppointments,
-}: {
-  onOpenAppointments: () => void;
-}) {
+function Overview() {
   const now = new Date();
 
   const { data: clientsData } = useApi<ClientRecord[]>(endpoints.clients());
@@ -209,13 +203,12 @@ function Overview({
               Insights for {MONTHS[now.getMonth()]} {now.getFullYear()}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onOpenAppointments}
+          <Link
+            to="/appointments"
             className="text-sm font-semibold text-indigo-600 hover:underline"
           >
             View Schedule
-          </button>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
@@ -281,13 +274,12 @@ function Overview({
               ))}
             </div>
           )}
-          <button
-            type="button"
-            onClick={onOpenAppointments}
-            className="mt-6 w-full rounded-xl bg-slate-50 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+          <Link
+            to="/appointments"
+            className="mt-6 block w-full rounded-xl bg-slate-50 py-2 text-center text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
           >
             View Full Schedule
-          </button>
+          </Link>
         </section>
 
         <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -316,7 +308,6 @@ function Overview({
           </div>
           <button
             type="button"
-            onClick={onOpenAppointments}
             className="mt-6 w-full rounded-xl bg-slate-50 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
           >
             View Analytics
@@ -334,13 +325,12 @@ function Overview({
             >
               Clients
             </button>
-            <button
-              type="button"
-              onClick={onOpenAppointments}
+            <Link
+              to="/appointments"
               className="rounded-lg px-6 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
             >
               Appointments
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -515,7 +505,7 @@ function exportClients(clients: ClientRecord[]) {
 
 /* ------------------------------------------------- on the "appointments" view */
 
-function AppointmentSchedule({ onShowOverview }: { onShowOverview: () => void }) {
+function AppointmentSchedule() {
   const [tab, setTab] = useState<AppointmentStatus>("upcoming");
   const [selected, setSelected] = useState(MONTH_OPTIONS[1]);
   const { month, year } = selected;
@@ -565,13 +555,6 @@ function AppointmentSchedule({ onShowOverview }: { onShowOverview: () => void })
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <Segmented options={TABS} value={tab} onChange={(value) => setTab(value)} />
-          <button
-            type="button"
-            onClick={onShowOverview}
-            className="text-[13px] font-medium text-brand-500 hover:text-brand-600"
-          >
-            ← Back to dashboard
-          </button>
         </div>
 
         <div className="flex items-center gap-2">

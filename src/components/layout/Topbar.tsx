@@ -8,6 +8,7 @@ import { useAuth } from "@/context/auth-context";
 /** Per-route heading; the subtitle replaces the greeting where the design has one. */
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
+  "/appointments": "Appointments",
   "/availability": "My Availability",
   "/client-records": "Client Records",
   "/consults": "My Consults",

@@ -3,6 +3,7 @@ import { AuthProvider } from "@/context/AuthProvider";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import LoginPage from "@/pages/Login";
 import DashboardPage from "@/pages/Dashboard";
+import AppointmentsPage from "@/pages/Appointments";
 import AvailabilityPage from "@/pages/Availability";
 import ClientRecordsPage from "@/pages/ClientRecords";
 import ClientDetailsPage from "@/pages/ClientDetails";
@@ -20,6 +21,7 @@ export default function App() {
 
           <Route element={<RequireAuth />}>
             <Route index element={<DashboardPage />} />
+            <Route path="appointments" element={<AppointmentsPage />} />
             <Route path="availability" element={<AvailabilityPage />} />
             <Route path="client-records" element={<ClientRecordsPage />} />
           <Route path="client-records/:key" element={<ClientDetailsPage />} />
