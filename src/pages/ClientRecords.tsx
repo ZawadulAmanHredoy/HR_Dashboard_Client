@@ -1,10 +1,19 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Clock, FileText, User } from "lucide-react";
+import {
+  Clock,
+  FileText,
+  Mail,
+  MoreHorizontal,
+  Phone,
+  Search,
+  User,
+  UserPlus,
+} from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { SearchIcon } from "@/components/icons";
+import { Menu } from "@/components/ui/Menu";
 import { useApi, usePageTitle } from "@/hooks/useApi";
-import { endpoints, type Appointment } from "@/lib/api";
+import { endpoints, type Appointment, type ClientRecord, type ClientStatus } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 export const CLIENT_STATUS_TONE = {
@@ -56,12 +65,43 @@ export default function ClientRecordsPage() {
 
   const [tab, setTab] = useState<Tab>("All");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | ClientStatus>("all");
 
-  const { data, loading, error } = useApi<Appointment[]>(endpoints.appointments({}));
+  const { data: clientsData, loading: clientsLoading, error: clientsError } = useApi<
+    ClientRecord[]
+  >(endpoints.clients());
 
-  const records = useMemo(() => {
+  const { data: appointmentsData, loading: apptsLoading, error: apptsError } = useApi<
+    Appointment[]
+  >(endpoints.appointments({}));
+
+  const clients = clientsData ?? [];
+  const appointments = appointmentsData ?? [];
+
+  const statusCounts = useMemo(
+    () => ({
+      Stable: clients.filter((client) => client.status === "Stable").length,
+      "Follow-up": clients.filter((client) => client.status === "Follow-up").length,
+      Closed: clients.filter((client) => client.status === "Closed").length,
+    }),
+    [clients],
+  );
+
+  const tableRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (data ?? [])
+    return clients.filter(
+      (client) =>
+        (statusFilter === "all" || client.status === statusFilter) &&
+        (!q ||
+          [client.name, client.email, client.phone, client.code ?? "", client.issue ?? ""].some(
+            (value) => value.toLowerCase().includes(q),
+          )),
+    );
+  }, [clients, search, statusFilter]);
+
+  const cardRecords = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return appointments
       .filter((row) => matchesTab(row.date, tab))
       .filter(
         (row) =>
@@ -70,7 +110,9 @@ export default function ClientRecordsPage() {
           row.issue.toLowerCase().includes(q),
       )
       .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
-  }, [data, tab, search]);
+  }, [appointments, tab, search]);
+
+  const statusLabel = statusFilter === "all" ? "All Status" : statusFilter;
 
   return (
     <div className="space-y-6">
@@ -80,139 +122,322 @@ export default function ClientRecordsPage() {
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-bold text-ink-900">Client Records</h1>
-          <label className="relative sm:w-72">
-            <SearchIcon
-              width={16}
-              height={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"
-            />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by name or issue"
-              className="h-10 w-full rounded-xl border border-ink-200 pl-9 pr-3 text-[13px] outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400"
-            />
-          </label>
+          {tab !== "All" ? (
+            <label className="relative sm:w-72">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name or issue"
+                className="h-10 w-full rounded-xl border border-ink-200 pl-9 pr-3 text-[13px] outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400"
+              />
+            </label>
+          ) : null}
         </div>
       </header>
 
-      {/* Tabs filter */}
-      <div className="inline-flex rounded-xl bg-canvas p-1.5">
-        {TABS.map((tabLabel) => (
-          <button
-            key={tabLabel}
-            type="button"
-            onClick={() => setTab(tabLabel)}
-            className={cn(
-              "rounded-lg px-8 py-2.5 text-sm font-medium transition-all duration-200",
-              tab === tabLabel
-                ? "bg-white text-ink-900 shadow-sm"
-                : "text-ink-400 hover:text-ink-600",
-            )}
+      {/* Tabs + add button */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-xl bg-canvas p-1.5">
+          {TABS.map((tabLabel) => (
+            <button
+              key={tabLabel}
+              type="button"
+              onClick={() => setTab(tabLabel)}
+              className={cn(
+                "rounded-lg px-8 py-2.5 text-sm font-medium transition-all duration-200",
+                tab === tabLabel
+                  ? "bg-white text-ink-900 shadow-sm"
+                  : "text-ink-400 hover:text-ink-600",
+              )}
+            >
+              {tabLabel}
+            </button>
+          ))}
+        </div>
+
+        {tab === "All" ? (
+          <Link
+            to="/client-records"
+            className="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/20 transition-all hover:bg-brand-600"
           >
-            {tabLabel}
-          </button>
-        ))}
+            <UserPlus size={18} /> Add New Client
+          </Link>
+        ) : null}
       </div>
 
-      {/* Records list */}
-      <div className="scroll-slim max-h-[600px] space-y-4 overflow-y-auto pr-2">
-        {loading ? (
-          [0, 1, 2, 3].map((row) => (
-            <div
-              key={row}
-              className="flex items-center gap-6 rounded-2xl border border-ink-100 bg-white p-4"
-            >
-              <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-ink-100" />
-              <div className="flex-1 animate-pulse space-y-2">
-                <div className="h-4 w-1/3 rounded-lg bg-ink-100" />
-                <div className="h-4 w-1/4 rounded-lg bg-ink-100" />
+      {tab === "All" ? (
+        <>
+          {/* Summary stats cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {clientsLoading
+              ? [0, 1, 2, 3].map((row) => (
+                  <div key={row} className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
+                    <div className="h-8 w-12 animate-pulse rounded-lg bg-ink-100" />
+                    <div className="mt-2 h-3 w-20 animate-pulse rounded bg-ink-100" />
+                  </div>
+                ))
+              : [
+                  { label: "Total Clients", value: clients.length },
+                  { label: "Stable", value: statusCounts.Stable },
+                  { label: "Follow-up", value: statusCounts["Follow-up"] },
+                  { label: "Closed", value: statusCounts.Closed },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm"
+                  >
+                    <p className="text-3xl font-bold text-ink-900">{stat.value}</p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-ink-400">
+                      {stat.label}
+                    </p>
+                  </div>
+                ))}
+          </div>
+
+          {/* Client table */}
+          <div className="rounded-[2rem] border border-ink-100 bg-white p-8 shadow-sm">
+            <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-2xl font-bold text-ink-900">Client Records</h2>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="relative">
+                  <Search
+                    size={18}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"
+                  />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search patients..."
+                    className="w-64 rounded-xl border border-ink-100 bg-ink-50 py-2 pl-10 pr-4 text-sm outline-none transition-all focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
+                <Menu
+                  align="right"
+                  className="flex items-center gap-2 rounded-xl border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-500 hover:bg-ink-50"
+                  label={statusLabel}
+                  items={[
+                    { label: "All Status", onSelect: () => setStatusFilter("all") },
+                    { label: "Stable", onSelect: () => setStatusFilter("Stable") },
+                    { label: "Follow-up", onSelect: () => setStatusFilter("Follow-up") },
+                    { label: "Closed", onSelect: () => setStatusFilter("Closed") },
+                  ]}
+                />
               </div>
             </div>
-          ))
-        ) : error ? (
-          <p className="rounded-2xl border border-ink-100 bg-white px-5 py-14 text-center text-[13px] text-rose-600">
-            {error}
-          </p>
-        ) : records.length === 0 ? (
-          <p className="rounded-2xl border border-ink-100 bg-white px-5 py-14 text-center text-[13px] text-ink-500">
-            {search
-              ? `No appointments match "${search}".`
-              : tab === "All"
-                ? "No appointments yet — they appear here once somebody books you."
-                : `No ${tab.toLowerCase()} appointments.`}
-          </p>
-        ) : (
-          records.map((record) => {
-            const { weekday, day } = dayParts(record.date);
-            const cancelled = record.status === "cancelled";
-            return (
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] text-left">
+                <thead>
+                  <tr className="border-b border-ink-100 text-xs font-bold uppercase tracking-wider text-ink-400">
+                    <th className="px-2 pb-4 font-semibold">Patient</th>
+                    <th className="pb-4 font-semibold">Contact</th>
+                    <th className="pb-4 font-semibold">Issue</th>
+                    <th className="pb-4 text-center font-semibold">Status</th>
+                    <th className="pb-4 font-semibold">Last Visit</th>
+                    <th className="pb-4 font-semibold">Next Appointment</th>
+                    <th className="pb-4 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {clientsLoading ? (
+                    [0, 1, 2, 3].map((row) => (
+                      <tr key={row} className="border-b border-ink-50 last:border-0">
+                        <td colSpan={7} className="px-5 py-5">
+                          <div className="h-8 animate-pulse rounded-lg bg-ink-100" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : clientsError ? (
+                    <tr>
+                      <td colSpan={7} className="py-14 text-center text-[13px] text-rose-600">
+                        {clientsError}
+                      </td>
+                    </tr>
+                  ) : tableRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-14 text-center text-[13px] text-ink-500">
+                        {search || statusFilter !== "all"
+                          ? "No clients match the current filters."
+                          : "No clients yet — they appear here once somebody books you."}
+                      </td>
+                    </tr>
+                  ) : (
+                    tableRows.map((client) => (
+                      <tr
+                        key={client.id}
+                        className="border-b border-ink-50 transition-colors last:border-0 hover:bg-ink-50/50"
+                      >
+                        <td className="px-2 py-5">
+                          <Link
+                            to={`/client-records/${encodeURIComponent(client.id)}`}
+                            className="flex items-center gap-4"
+                          >
+                            {client.avatarUrl ? (
+                              <img
+                                src={client.avatarUrl}
+                                alt=""
+                                referrerPolicy="no-referrer"
+                                className="h-10 w-10 shrink-0 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink-100 text-xs font-bold text-ink-500">
+                                {initials(client.name)}
+                              </span>
+                            )}
+                            <div>
+                              <div className="font-bold text-ink-900">{client.name}</div>
+                              <div className="mt-0.5 text-xs font-medium text-ink-400">
+                                {client.code ?? "—"} &middot;{" "}
+                                {client.age != null ? `${client.age}y` : "—"} &middot;{" "}
+                                {client.jobTitle || "—"}
+                              </div>
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="py-5">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-xs font-medium text-ink-600">
+                              <Phone size={12} className="text-ink-400" /> {client.phone || "—"}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs font-medium text-ink-600">
+                              <Mail size={12} className="text-ink-400" /> {client.email || "—"}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-5">
+                          <span className="font-semibold text-ink-600">
+                            {client.issue || "—"}
+                          </span>
+                        </td>
+                        <td className="py-5 text-center">
+                          <Badge
+                            tone={CLIENT_STATUS_TONE[client.status] ?? "gray"}
+                            className="px-4 uppercase tracking-widest"
+                          >
+                            {client.status}
+                          </Badge>
+                        </td>
+                        <td className="py-5 font-semibold text-ink-500">
+                          {client.lastSeen || "—"}
+                        </td>
+                        <td className="py-5 font-semibold text-ink-500">
+                          {client.nextAppointment || "—"}
+                        </td>
+                        <td className="py-5 text-right">
+                          <Link
+                            to={`/client-records/${encodeURIComponent(client.id)}`}
+                            className="inline-flex p-2 text-ink-400 transition-colors hover:text-ink-600"
+                          >
+                            <MoreHorizontal size={20} />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* Cards view for the date-filtered tabs */
+        <div className="scroll-slim max-h-[600px] space-y-4 overflow-y-auto pr-2">
+          {apptsLoading ? (
+            [0, 1, 2, 3].map((row) => (
               <div
-                key={record.id}
-                className={cn(
-                  "group flex items-center rounded-2xl border bg-white p-4 transition-shadow duration-300 hover:shadow-card",
-                  cancelled ? "border-ink-100 opacity-60" : "border-ink-100",
-                )}
+                key={row}
+                className="flex items-center gap-6 rounded-2xl border border-ink-100 bg-white p-4"
               >
-                {/* Date box */}
-                <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-xl bg-canvas">
-                  <span className="text-xs font-bold uppercase tracking-wide text-ink-400">
-                    {weekday}
-                  </span>
-                  <span className="text-2xl font-bold text-ink-900">{day}</span>
-                </div>
-
-                {/* Divider */}
-                <div className="mx-6 h-12 w-px bg-ink-100" />
-
-                {/* Content grid */}
-                <div className="grid flex-1 grid-cols-1 gap-y-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 text-ink-500">
-                      <Clock size={18} className="text-ink-400" />
-                      <span className="text-sm font-medium">
-                        {record.start} - {record.end}
-                      </span>
-                      {cancelled ? (
-                        <Badge tone="red" className="ml-1">
-                          Cancelled
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-3 text-ink-500">
-                      <User size={18} className="text-ink-400" />
-                      <span className="text-sm font-semibold text-ink-700">
-                        {record.client}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm text-ink-500">
-                      Issue:
-                      <span className="ml-1 font-medium text-ink-700">
-                        {record.issue || "—"}
-                      </span>
-                    </div>
-                    <div>
-                      {record.documents ? (
-                        <Link
-                          to="/appointments"
-                          className="flex items-center gap-1 text-sm font-semibold text-brand-500 hover:underline"
-                        >
-                          <FileText size={15} /> View Documents
-                        </Link>
-                      ) : (
-                        <span className="text-ink-200">—</span>
-                      )}
-                    </div>
-                  </div>
+                <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-ink-100" />
+                <div className="flex-1 animate-pulse space-y-2">
+                  <div className="h-4 w-1/3 rounded-lg bg-ink-100" />
+                  <div className="h-4 w-1/4 rounded-lg bg-ink-100" />
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+            ))
+          ) : apptsError ? (
+            <p className="rounded-2xl border border-ink-100 bg-white px-5 py-14 text-center text-[13px] text-rose-600">
+              {apptsError}
+            </p>
+          ) : cardRecords.length === 0 ? (
+            <p className="rounded-2xl border border-ink-100 bg-white px-5 py-14 text-center text-[13px] text-ink-500">
+              {search
+                ? `No appointments match "${search}".`
+                : `No ${tab.toLowerCase()} appointments.`}
+            </p>
+          ) : (
+            cardRecords.map((record) => {
+              const { weekday, day } = dayParts(record.date);
+              const cancelled = record.status === "cancelled";
+              return (
+                <div
+                  key={record.id}
+                  className={cn(
+                    "group flex items-center rounded-2xl border bg-white p-4 transition-shadow duration-300 hover:shadow-card",
+                    cancelled && "opacity-60",
+                  )}
+                >
+                  <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-xl bg-canvas">
+                    <span className="text-xs font-bold uppercase tracking-wide text-ink-400">
+                      {weekday}
+                    </span>
+                    <span className="text-2xl font-bold text-ink-900">{day}</span>
+                  </div>
+
+                  <div className="mx-6 h-12 w-px bg-ink-100" />
+
+                  <div className="grid flex-1 grid-cols-1 gap-y-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 text-ink-500">
+                        <Clock size={18} className="text-ink-400" />
+                        <span className="text-sm font-medium">
+                          {record.start} - {record.end}
+                        </span>
+                        {cancelled ? (
+                          <Badge tone="red" className="ml-1">
+                            Cancelled
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-3 text-ink-500">
+                        <User size={18} className="text-ink-400" />
+                        <span className="text-sm font-semibold text-ink-700">
+                          {record.client}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm text-ink-500">
+                        Issue:
+                        <span className="ml-1 font-medium text-ink-700">
+                          {record.issue || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        {record.documents ? (
+                          <Link
+                            to="/appointments"
+                            className="flex items-center gap-1 text-sm font-semibold text-brand-500 hover:underline"
+                          >
+                            <FileText size={15} /> View Documents
+                          </Link>
+                        ) : (
+                          <span className="text-ink-200">—</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
