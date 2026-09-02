@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { PlusIcon } from "@/components/icons";
-import { usePageTitle } from "@/hooks/useApi";
-import { API_BASE_URL, api, type Profile } from "@/lib/api";
+import { useApi, usePageTitle } from "@/hooks/useApi";
+import { API_BASE_URL, api, endpoints, type AvailabilityMonth, type Profile } from "@/lib/api";
 import { FALLBACK_PROFILE, useProfile } from "@/context/profile-context";
+import { cn } from "@/lib/cn";
 
 const field =
   "h-10 w-full rounded-xl border border-ink-200 px-3 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400";
@@ -18,6 +20,60 @@ const APPOINTMENT_TYPES = ["Online Consultation", "In person", "Both"];
 
 type EducationRow = Profile["education"][number];
 type DatedRow = { name: string; date: string };
+
+/* -------------------------------------------- weekly appointment schedule */
+
+const WEEKDAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
+type Weekday = (typeof WEEKDAYS)[number];
+type SlotRow = { start: string; end: string };
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** "09:00am" / "04:30pm" (as the availability API formats it) -> "09:00". */
+function to24(t12: string) {
+  const match = /^(\d{1,2}):(\d{2})(am|pm)$/i.exec(t12.trim());
+  if (!match) return "";
+  let hour = Number(match[1]) % 12;
+  if (/pm/i.test(match[3])) hour += 12;
+  return `${pad2(hour)}:${match[2]}`;
+}
+
+/** Row duration in minutes, clamped to what the slots API accepts, or null. */
+function durationOf(row: SlotRow) {
+  const [sh, sm] = row.start.split(":").map(Number);
+  const [eh, em] = row.end.split(":").map(Number);
+  if (!Number.isFinite(sh) || !Number.isFinite(eh)) return null;
+  const minutes = eh * 60 + em - (sh * 60 + sm);
+  return minutes >= 15 && minutes <= 240 ? minutes : null;
+}
+
+/** Next calendar date (YYYY-MM-DD) whose weekday matches, including today. */
+function nextWeekdayISO(day: Weekday, now = new Date()) {
+  const target = WEEKDAYS.indexOf(day);
+  const today = (now.getDay() + 6) % 7; // Monday = 0
+  const ahead = (target - today + 7) % 7;
+  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ahead);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function blankDay(): SlotRow[] {
+  return [{ start: "", end: "" }];
+}
+
+function blankWeek(): Record<Weekday, SlotRow[]> {
+  return Object.fromEntries(WEEKDAYS.map((day) => [day, blankDay()])) as Record<
+    Weekday,
+    SlotRow[]
+  >;
+}
 
 export default function ProfilePage() {
   usePageTitle("Profile");
@@ -336,6 +392,11 @@ export default function ProfilePage() {
         </Grid>
       </Section>
 
+      {/* -------------------------------------- Appointment schedule */}
+      <Section title="Appointment Schedule">
+        <AppointmentSchedule />
+      </Section>
+
       {/* -------------------------------------------- Appointment information */}
       <Section title="Appointment information">
         <Grid>
@@ -504,6 +565,186 @@ export default function ProfilePage() {
 }
 
 /* ------------------------------------------------------------------ pieces */
+
+function AppointmentSchedule() {
+  const [activeDay, setActiveDay] = useState<Weekday>("Monday");
+  const [schedule, setSchedule] = useState<Record<Weekday, SlotRow[]>>(blankWeek);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const now = new Date();
+  const { data: monthData } = useApi<AvailabilityMonth>(
+    endpoints.availability(now.getFullYear(), now.getMonth() + 1),
+  );
+
+  // Prefill each weekday from this month's first occurrence with slots.
+  useEffect(() => {
+    if (!monthData) return;
+    setSchedule((prev) => {
+      const next = { ...prev };
+      for (const day of WEEKDAYS) {
+        const target = WEEKDAYS.indexOf(day);
+        const first = monthData.days.find(
+          (entry) => ((new Date(`${entry.date}T00:00:00Z`).getUTCDay() + 6) % 7) === target,
+        );
+        const rows =
+          first?.slots?.map((slot) => ({ start: to24(slot.start), end: to24(slot.end) })) ??
+          [];
+        if (rows.length) next[day] = rows;
+      }
+      return next;
+    });
+  }, [monthData]);
+
+  const setRows = (day: Weekday, rows: SlotRow[]) => {
+    setSaved(false);
+    setSchedule((prev) => ({ ...prev, [day]: rows }));
+  };
+
+  const updateRow = (day: Weekday, index: number, patch: Partial<SlotRow>) =>
+    setRows(
+      day,
+      schedule[day].map((row, rowIndex) =>
+        rowIndex === index ? { ...row, ...patch } : row,
+      ),
+    );
+
+  const addRow = (day: Weekday) => setRows(day, [...schedule[day], { start: "", end: "" }]);
+
+  const removeRow = (day: Weekday, index: number) => {
+    const rows = schedule[day].filter((_, rowIndex) => rowIndex !== index);
+    setRows(day, rows.length ? rows : blankDay());
+  };
+
+  /** Duplicate the active day across the whole week, then publish it. */
+  const applyAll = async () => {
+    const next = { ...schedule } as Record<Weekday, SlotRow[]>;
+    for (const day of WEEKDAYS) next[day] = [...schedule[activeDay]];
+    setSchedule(next);
+    setSaved(false);
+    setBusy(true);
+    try {
+      for (const day of WEEKDAYS) {
+        const rows = next[day].filter((row) => row.start && row.end);
+        if (!rows.length) continue;
+
+        // The slots API writes one fixed duration per call, so group by it.
+        const byDuration = new Map<number, string[]>();
+        for (const row of rows) {
+          const duration = durationOf(row);
+          if (duration == null) continue;
+          const times = byDuration.get(duration) ?? [];
+          times.push(row.start);
+          byDuration.set(duration, times);
+        }
+
+        for (const [duration, times] of byDuration) {
+          await api.post("/availability/slots", {
+            date: nextWeekdayISO(day),
+            times,
+            duration_minutes: duration,
+            mode: "Online",
+            repeat_weeks: 7,
+          });
+        }
+      }
+      setSaved(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const activeRows = schedule[activeDay];
+
+  return (
+    <>
+      {/* Day tabs */}
+      <div className="mb-8 flex flex-wrap gap-3">
+        {WEEKDAYS.map((day) => (
+          <button
+            key={day}
+            type="button"
+            onClick={() => setActiveDay(day)}
+            className={cn(
+              "rounded-lg px-6 py-2 text-sm font-semibold transition-all",
+              activeDay === day
+                ? "bg-brand-600 text-white shadow-md shadow-brand-500/20"
+                : "bg-ink-100 text-ink-600 hover:bg-ink-200",
+            )}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+
+      {/* Time slot rows */}
+      <div className="mb-6 space-y-4">
+        {activeRows.map((row, index) => (
+          <div key={index} className="flex flex-col items-end gap-3 md:flex-row md:items-end">
+            <div className="w-full md:flex-1">
+              {index === 0 ? (
+                <label className="mb-3 block text-sm font-bold text-ink-700">From</label>
+              ) : null}
+              <input
+                type="time"
+                value={row.start}
+                onChange={(event) => updateRow(activeDay, index, { start: event.target.value })}
+                className="w-full rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div className="w-full md:flex-1">
+              {index === 0 ? (
+                <label className="mb-3 block text-sm font-bold text-ink-700">To</label>
+              ) : null}
+              <input
+                type="time"
+                value={row.end}
+                onChange={(event) => updateRow(activeDay, index, { end: event.target.value })}
+                className="w-full rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div className="flex gap-2 pb-1">
+              <button
+                type="button"
+                aria-label="Add time slot"
+                onClick={() => addRow(activeDay)}
+                className="rounded-xl bg-ink-100 p-3 text-ink-500 transition-colors hover:bg-ink-200"
+              >
+                <Plus size={20} />
+              </button>
+              {activeRows.length > 1 ? (
+                <button
+                  type="button"
+                  aria-label="Remove time slot"
+                  onClick={() => removeRow(activeDay, index)}
+                  className="rounded-xl bg-rose-50 p-3 text-rose-500 transition-colors hover:bg-rose-100"
+                >
+                  <Trash2 size={20} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void applyAll()}
+          className="rounded-lg bg-ink-900 px-6 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-80 disabled:opacity-60"
+        >
+          {busy ? "Saving..." : "Apply All"}
+        </button>
+        {saved ? (
+          <span className="text-[12px] text-emerald-600">
+            Schedule published for the next 8 weeks
+          </span>
+        ) : null}
+      </div>
+    </>
+  );
+}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
