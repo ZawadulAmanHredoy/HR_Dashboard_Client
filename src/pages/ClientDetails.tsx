@@ -42,10 +42,42 @@ export default function ClientDetailsPage() {
   const [savingNote, setSavingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [previews, setPreviews] = useState<
+    Record<string, { url: string; error: boolean }>
+  >({});
 
   useEffect(() => {
     if (data) setNote(data.note ?? "");
   }, [data]);
+
+  // Load each uploaded resume's bytes so its PDF can be previewed inline.
+  // Revoked on unmount to avoid leaking object URLs.
+  useEffect(() => {
+    const uploaded = (data?.resumes ?? []).filter((resume) => resume.storagePath);
+    if (!uploaded.length) return;
+
+    let alive = true;
+    const created: string[] = [];
+    uploaded.forEach((resume) => {
+      api
+        .getBlob(endpoints.resumeBytes(key, resume.storagePath as string))
+        .then((blob) => {
+          if (!alive) return;
+          const url = URL.createObjectURL(blob);
+          created.push(url);
+          setPreviews((prev) => ({ ...prev, [resume.id]: { url, error: false } }));
+        })
+        .catch(() => {
+          if (!alive) return;
+          setPreviews((prev) => ({ ...prev, [resume.id]: { url: "", error: true } }));
+        });
+    });
+
+    return () => {
+      alive = false;
+      created.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [data, key]);
 
   const saveNote = async () => {
     setSavingNote(true);
@@ -275,37 +307,66 @@ export default function ClientDetailsPage() {
           </div>
         ) : (
           <div className="flex flex-wrap gap-4">
-            {data.resumes.map((resume) => (
-              <div
-                key={resume.id}
-                className="w-[180px] overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm transition-shadow hover:shadow-md"
-              >
-                <button
-                  type="button"
-                  onClick={() => void openResume(resume)}
-                  className="flex h-[210px] w-full items-center justify-center bg-ink-100/60"
+            {data.resumes.map((resume) => {
+              const preview = previews[resume.id];
+              const openPreview = resume.storagePath
+                ? () => {
+                    const target = preview?.url;
+                    if (target) {
+                      window.open(target, "_blank", "noopener");
+                    } else {
+                      void openResume(resume);
+                    }
+                  }
+                : () => void openResume(resume);
+
+              return (
+                <div
+                  key={resume.id}
+                  className="w-[180px] overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                 >
-                  <DocIcon width={34} height={34} className="text-ink-400" />
-                </button>
-                <div className="px-3 py-2.5">
-                  <p className="truncate text-[12px] font-medium text-ink-900">
-                    {resume.title}
-                  </p>
-                  <p className="text-[11px] text-ink-400">
-                    {resume.updatedAt ? longDate(resume.updatedAt.slice(0, 10)) : "Attached"}
-                  </p>
-                  {resume.storagePath ? (
+                  {preview?.url ? (
                     <button
                       type="button"
-                      onClick={() => void openResume(resume)}
-                      className="mt-1.5 text-[11px] font-medium text-brand-500 transition-colors hover:text-brand-600"
+                      onClick={openPreview}
+                      className="block h-[210px] w-full overflow-hidden"
+                      title="Open CV"
                     >
-                      Open file
+                      <iframe
+                        src={preview.url}
+                        title={resume.title}
+                        className="pointer-events-none h-[210px] w-[180px] border-0"
+                      />
                     </button>
-                  ) : null}
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={openPreview}
+                      className="flex h-[210px] w-full items-center justify-center bg-ink-100/60"
+                    >
+                      <DocIcon width={34} height={34} className="text-ink-400" />
+                    </button>
+                  )}
+                  <div className="px-3 py-2.5">
+                    <p className="truncate text-[12px] font-medium text-ink-900">
+                      {resume.title}
+                    </p>
+                    <p className="text-[11px] text-ink-400">
+                      {resume.updatedAt ? longDate(resume.updatedAt.slice(0, 10)) : "Attached"}
+                    </p>
+                    {resume.storagePath ? (
+                      <button
+                        type="button"
+                        onClick={openPreview}
+                        className="mt-1.5 text-[11px] font-medium text-brand-500 transition-colors hover:text-brand-600"
+                      >
+                        Open file
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

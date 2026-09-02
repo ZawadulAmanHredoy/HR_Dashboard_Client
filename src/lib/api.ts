@@ -38,8 +38,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (payload as { data: T }).data;
 }
 
+/** Raw (non-JSON) fetch — used to preview uploaded resumes as Blob URLs. */
+async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    onUnauthorized?.();
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(
+      (payload as { error?: string }).error ??
+        `Request failed with status ${response.status}`,
+    );
+  }
+
+  return response.blob();
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
+  getBlob: (path: string) => requestBlob(path),
   post: <T>(path: string, body: Json) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body) }),
   patch: <T>(path: string, body: Json) =>
@@ -203,6 +226,8 @@ export const endpoints = {
   client: (key: string) => `/clients/${encodeURIComponent(key)}`,
   resumeUrl: (key: string, path: string) =>
     `/clients/${encodeURIComponent(key)}/resume-url?path=${encodeURIComponent(path)}`,
+  resumeBytes: (key: string, path: string) =>
+    `/clients/${encodeURIComponent(key)}/resume?path=${encodeURIComponent(path)}`,
   stats: "/stats",
   profile: "/profile",
 };
