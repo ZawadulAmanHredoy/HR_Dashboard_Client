@@ -12,7 +12,6 @@ import {
   Edit3,
   MoreVertical,
   TrendingUp,
-  ChevronDown as ChevronIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -121,12 +120,6 @@ function Overview({
     },
   ];
 
-  const todayLabel = now.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-
   const schedule = [
     { label: "Morning", count: todays.filter((r) => periodOf(r.start) === "Morning").length },
     { label: "Afternoon", count: todays.filter((r) => periodOf(r.start) === "Afternoon").length },
@@ -188,44 +181,6 @@ function Overview({
 
   return (
     <div className="min-h-screen p-0 font-sans text-slate-800 sm:p-8">
-      {/* Top header section */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-          <button
-            type="button"
-            className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white"
-          >
-            Clients
-          </button>
-          <button
-            type="button"
-            onClick={onOpenAppointments}
-            className="rounded-lg px-6 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
-          >
-            Appointments
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <span className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600">
-            {todayLabel} <ChevronIcon size={16} className="text-slate-400" />
-          </span>
-          <button
-            type="button"
-            onClick={() => exportClients(clients)}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50"
-          >
-            <Download size={16} /> Export
-          </button>
-          <Link
-            to="/client-records"
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-200 transition-colors hover:bg-indigo-700"
-          >
-            <Plus size={16} /> Add Client
-          </Link>
-        </div>
-      </div>
-
       {/* Monthly analytics overview card */}
       <div className="mb-8 rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
         <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
@@ -356,12 +311,42 @@ function Overview({
       <div className="rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold">Client Records</h2>
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
-          >
-            <Filter size={16} /> Advanced Filters
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white"
+              >
+                Clients
+              </button>
+              <button
+                type="button"
+                onClick={onOpenAppointments}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+              >
+                Appointments
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportClients(clients)}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              <Download size={16} /> Export
+            </button>
+            <Link
+              to="/client-records"
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-200 transition-colors hover:bg-indigo-700"
+            >
+              <Plus size={16} /> Add Client
+            </Link>
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              <Filter size={16} /> Advanced Filters
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
