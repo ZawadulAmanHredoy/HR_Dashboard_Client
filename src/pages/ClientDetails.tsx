@@ -1,16 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
+import {
+  Activity,
+  Briefcase,
+  Calendar,
+  Clock,
+  Mail,
+  MapPin,
+  Phone,
+  type LucideIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import {
-  CalendarIcon,
-  ChevronLeft,
-  ClockIcon,
-  DocIcon,
-  FolderIcon,
-  SparkIcon,
-} from "@/components/icons";
+import { ChevronLeft, DocIcon } from "@/components/icons";
 import { useApi, usePageTitle } from "@/hooks/useApi";
 import { api, endpoints, type ClientDetail } from "@/lib/api";
 import { CLIENT_STATUS_TONE, initials } from "@/pages/ClientRecords";
@@ -18,7 +20,6 @@ import { MONTHS_SHORT } from "@/lib/date";
 
 const STATUSES = ["Stable", "Follow-up", "Closed"] as const;
 
-/** "2026-04-20" -> "2026-04-20" is what the design shows, so keep it literal. */
 function isoOrDash(value: string | null) {
   return value ?? "—";
 }
@@ -85,7 +86,7 @@ export default function ClientDetailsPage() {
     return (
       <div className="space-y-4">
         <div className="h-28 animate-pulse rounded-2xl bg-ink-100" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((tile) => (
             <div key={tile} className="h-20 animate-pulse rounded-2xl bg-ink-100" />
           ))}
@@ -112,7 +113,8 @@ export default function ClientDetailsPage() {
     "h-10 w-full rounded-xl border border-ink-200 px-3 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 pb-12">
+      {/* Back link */}
       <Link
         to="/client-records"
         className="inline-flex items-center gap-1 text-[12.5px] font-medium text-ink-500 transition-colors hover:text-brand-600"
@@ -121,11 +123,11 @@ export default function ClientDetailsPage() {
         All clients
       </Link>
 
-      {/* Identity card */}
-      <Card className="p-5">
+      {/* Client profile banner */}
+      <div className="flex flex-col gap-8 rounded-[2rem] border border-ink-100 bg-white p-8 shadow-sm md:flex-row md:items-start md:justify-between md:gap-12">
         {editing ? (
           <form
-            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+            className="grid w-full gap-4 sm:grid-cols-2 xl:grid-cols-3"
             onSubmit={(event) => {
               event.preventDefault();
               void saveDetails(new FormData(event.currentTarget));
@@ -171,67 +173,88 @@ export default function ClientDetailsPage() {
             </div>
           </form>
         ) : (
-          <div className="flex flex-wrap items-center gap-x-10 gap-y-5">
-            <div className="flex items-center gap-4">
+          <>
+            <div className="flex items-center gap-6">
               {data.avatarUrl ? (
                 <img
                   src={data.avatarUrl}
                   alt=""
                   referrerPolicy="no-referrer"
-                  className="h-14 w-14 shrink-0 rounded-full object-cover"
+                  className="h-20 w-20 shrink-0 rounded-full border border-ink-100 object-cover"
                 />
               ) : (
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-ink-100 text-[16px] font-semibold text-ink-500">
+                <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-ink-100 bg-ink-50 text-2xl font-bold text-ink-400">
                   {initials(data.name)}
                 </span>
               )}
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[19px] font-semibold text-ink-900">{data.name}</h2>
-                  <Badge tone={CLIENT_STATUS_TONE[data.status] ?? "gray"}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-bold text-ink-900">{data.name}</h2>
+                  <Badge
+                    tone={CLIENT_STATUS_TONE[data.status] ?? "gray"}
+                    className="px-3 py-0.5 uppercase tracking-wide"
+                  >
                     {data.status}
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-[12px] text-ink-400">
-                  {[data.code, data.age ? `${data.age} years` : null]
+                <p className="mt-1 font-medium text-ink-400">
+                  {[data.code, data.age != null ? `${data.age} years` : null]
                     .filter(Boolean)
                     .join(" • ") || "No record code yet"}
                 </p>
               </div>
             </div>
 
-            <Fact label="Phone" value={data.phone} />
-            <Fact label="Email" value={data.email} />
-            <Fact label="Address" value={data.address} />
+            <div className="flex flex-1 flex-wrap gap-x-12 gap-y-6">
+              <ContactItem icon={Phone} label="Phone" value={data.phone} />
+              <ContactItem icon={Mail} label="Email" value={data.email} />
+              <ContactItem icon={MapPin} label="Address" value={data.address} />
+            </div>
 
             <Button
               variant="outline"
               size="sm"
-              className="ml-auto"
+              className="shrink-0 self-start"
               onClick={() => setEditing(true)}
             >
               Edit details
             </Button>
-          </div>
+          </>
         )}
-      </Card>
+      </div>
 
-      {/* Booking facts — derived, never editable here */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Tile icon={FolderIcon} label="Job Title" value={data.jobTitle || "—"} />
-        <Tile icon={SparkIcon} label="Issue" value={data.issue || "—"} />
-        <Tile icon={CalendarIcon} label="Last Consult" value={isoOrDash(data.lastConsult)} />
-        <Tile
-          icon={ClockIcon}
+      {/* Booking facts */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <InfoCard
+          icon={Briefcase}
+          label="Job Title"
+          value={data.jobTitle || "—"}
+          tone="bg-brand-50 text-brand-500"
+        />
+        <InfoCard
+          icon={Activity}
+          label="Issue"
+          value={data.issue || "—"}
+          tone="bg-amber-50 text-amber-500"
+        />
+        <InfoCard
+          icon={Calendar}
+          label="Last Consult"
+          value={isoOrDash(data.lastConsult)}
+          tone="bg-brand-50 text-brand-500"
+        />
+        <InfoCard
+          icon={Clock}
           label="Next Appointment"
           value={isoOrDash(data.nextAppointment)}
+          tone="bg-brand-50 text-brand-500"
         />
       </div>
 
       {/* Booking note — what the client wrote when they booked */}
       {data.bookingNote ? (
         <section>
-          <h3 className="mb-3 text-[14px] font-semibold text-ink-900">Booking note</h3>
+          <h3 className="mb-4 text-xl font-bold text-ink-900">Booking note</h3>
           <div className="whitespace-pre-wrap rounded-2xl border border-ink-200 bg-ink-50/50 p-4 text-[13px] text-ink-900">
             {data.bookingNote}
           </div>
@@ -240,7 +263,7 @@ export default function ClientDetailsPage() {
 
       {/* Resume */}
       <section>
-        <h3 className="mb-3 text-[14px] font-semibold text-ink-900">Resume</h3>
+        <h3 className="mb-4 text-xl font-bold text-ink-900">Resume</h3>
         {data.resumes.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-ink-200 px-5 py-10 text-center">
             <p className="text-[12.5px] text-ink-500">
@@ -255,11 +278,15 @@ export default function ClientDetailsPage() {
             {data.resumes.map((resume) => (
               <div
                 key={resume.id}
-                className="w-[180px] overflow-hidden rounded-xl border border-ink-200 bg-white"
+                className="w-[180px] overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex h-[190px] items-center justify-center bg-ink-100/60">
+                <button
+                  type="button"
+                  onClick={() => void openResume(resume)}
+                  className="flex h-[210px] w-full items-center justify-center bg-ink-100/60"
+                >
                   <DocIcon width={34} height={34} className="text-ink-400" />
-                </div>
+                </button>
                 <div className="px-3 py-2.5">
                   <p className="truncate text-[12px] font-medium text-ink-900">
                     {resume.title}
@@ -285,7 +312,7 @@ export default function ClientDetailsPage() {
 
       {/* Note */}
       <section>
-        <h3 className="mb-3 text-[14px] font-semibold text-ink-900">Note</h3>
+        <h3 className="mb-4 text-xl font-bold text-ink-900">Note</h3>
         <textarea
           value={note}
           onChange={(event) => {
@@ -294,7 +321,7 @@ export default function ClientDetailsPage() {
           }}
           rows={5}
           placeholder="Write to client..."
-          className="w-full rounded-2xl border border-ink-200 p-4 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400"
+          className="w-full resize-none rounded-3xl border border-ink-200 bg-white p-8 text-[13px] text-ink-900 shadow-sm outline-none transition-all placeholder:text-ink-300 focus:ring-4 focus:ring-brand-50"
         />
         <div className="mt-3 flex items-center justify-end gap-3">
           {noteSaved ? (
@@ -309,38 +336,57 @@ export default function ClientDetailsPage() {
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-[150px]">
-      <p className="text-[11px] text-ink-400">{label}</p>
-      <p className="mt-0.5 text-[13px] text-ink-900">{value || "—"}</p>
-    </div>
-  );
-}
-
-function Tile({
+function ContactItem({
   icon: Icon,
   label,
   value,
 }: {
-  icon: (props: { width?: number; height?: number; className?: string }) => React.ReactElement;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {
   return (
-    <Card className="flex items-center gap-3 p-4">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
-        <Icon width={17} height={17} />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[11px] text-ink-400">{label}</p>
-        <p className="truncate text-[13.5px] font-medium text-ink-900">{value}</p>
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5 text-indigo-500">
+        <Icon size={18} />
       </div>
-    </Card>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-ink-400">
+          {label}
+        </p>
+        <p className="mt-1 whitespace-nowrap text-sm font-bold text-ink-700">
+          {value || "—"}
+        </p>
+      </div>
+    </div>
   );
 }
 
-function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
+function InfoCard({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="flex items-center gap-5 rounded-[1.5rem] border border-ink-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+      <div className={`shrink-0 rounded-2xl p-3.5 ${tone}`}>
+        <Icon size={24} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-widest text-ink-400">{label}</p>
+        <p className="truncate text-lg font-bold leading-tight text-ink-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function Labelled({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-medium text-ink-700">{label}</span>
