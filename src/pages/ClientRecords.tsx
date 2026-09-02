@@ -473,7 +473,7 @@ const modalField =
   "h-10 w-full rounded-xl border border-ink-200 px-3 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400";
 
 /** Creates a manual client record via POST /clients (no booking required). */
-function AddClientModal({
+export function AddClientModal({
   open,
   onClose,
   onCreated,

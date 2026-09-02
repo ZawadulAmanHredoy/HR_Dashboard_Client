@@ -19,6 +19,7 @@ import { Menu } from "@/components/ui/Menu";
 import { Segmented } from "@/components/ui/Segmented";
 import { ChevronDown, DocIcon, UserIcon, VideoIcon } from "@/components/icons";
 import { NewAppointmentModal } from "@/components/dashboard/NewAppointmentModal";
+import { AddClientModal } from "@/pages/ClientRecords";
 import { useApi } from "@/hooks/useApi";
 import {
   api,
@@ -72,7 +73,9 @@ export function AnalyticsView() {
 function Overview() {
   const now = new Date();
 
-  const { data: clientsData } = useApi<ClientRecord[]>(endpoints.clients());
+  const { data: clientsData, refresh: refreshClients } = useApi<ClientRecord[]>(
+    endpoints.clients(),
+  );
   const { data: statsData } = useApi<ConsultStat[]>(endpoints.stats);
   const { data: monthRows } = useApi<Appointment[]>(
     endpoints.appointments({
@@ -85,6 +88,7 @@ function Overview() {
   const clients = clientsData ?? [];
   const stats = statsData ?? [];
   const upcoming = monthRows ?? [];
+  const [addingClient, setAddingClient] = useState(false);
 
   const todays = upcoming.filter(
     (row) => row.month === now.getMonth() && row.day === now.getDate(),
@@ -188,13 +192,23 @@ function Overview() {
         >
           <Download size={16} /> Export
         </button>
-        <Link
-          to="/client-records"
+        <button
+          type="button"
+          onClick={() => setAddingClient(true)}
           className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-200 transition-colors hover:bg-indigo-700"
         >
           <Plus size={16} /> Add Client
-        </Link>
+        </button>
       </div>
+
+      <AddClientModal
+        open={addingClient}
+        onClose={() => setAddingClient(false)}
+        onCreated={() => {
+          refreshClients();
+          setAddingClient(false);
+        }}
+      />
 
       {/* Monthly analytics overview card */}
       <div className="mb-8 rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
