@@ -63,6 +63,10 @@ export function AppointmentsView() {
   return <AppointmentSchedule />;
 }
 
+export function AnalyticsView() {
+  return <Analytics />;
+}
+
 /* ---------------------------------------------------------- clients overview */
 
 function Overview() {
@@ -306,12 +310,12 @@ function Overview() {
             <PerformanceRow label="Hours Delivered" val={hoursDelivered.value} color="text-green-500" />
             <PerformanceRow label="Repeat Clients" val={repeatClients.value} color="text-indigo-500" />
           </div>
-          <button
-            type="button"
-            className="mt-6 w-full rounded-xl bg-slate-50 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+          <Link
+            to="/analytics"
+            className="mt-6 block w-full rounded-xl bg-slate-50 py-2 text-center text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
           >
             View Analytics
-          </button>
+          </Link>
         </section>
       </div>
 
@@ -501,6 +505,215 @@ function exportClients(clients: ClientRecord[]) {
   anchor.download = "clients.csv";
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+/* ------------------------------------------------------------- analytics */
+
+function Analytics() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1-indexed, as the API expects
+
+  const { data: statsData } = useApi<ConsultStat[]>(endpoints.stats);
+  const { data: clientsData } = useApi<ClientRecord[]>(endpoints.clients());
+  const { data: monthUpcoming } = useApi<Appointment[]>(
+    endpoints.appointments({ status: "upcoming", year, month }),
+  );
+  const { data: monthPast } = useApi<Appointment[]>(
+    endpoints.appointments({ status: "past", year, month }),
+  );
+  const { data: monthCancelled } = useApi<Appointment[]>(
+    endpoints.appointments({ status: "cancelled", year, month }),
+  );
+
+  const stats = statsData ?? [];
+  const clients = clientsData ?? [];
+  const upcomingList = monthUpcoming ?? [];
+  const pastList = monthPast ?? [];
+  const cancelledList = monthCancelled ?? [];
+
+  const tileOf = (index: number) => stats[index] ?? { label: "—", value: "—", delta: "" };
+  const totalConsults = tileOf(0);
+  const hoursDelivered = tileOf(1);
+  const avgRating = tileOf(2);
+  const repeatClients = tileOf(3);
+
+  const stable = clients.filter((client) => client.status === "Stable").length;
+  const followUp = clients.filter((client) => client.status === "Follow-up").length;
+  const closed = clients.filter((client) => client.status === "Closed").length;
+  const active = clients.length - closed;
+
+  const monthRows = [...upcomingList, ...pastList, ...cancelledList];
+  const monthTotal = monthRows.length;
+  const online = monthRows.filter((row) => row.mode === "Online").length;
+  const inPerson = monthTotal - online;
+
+  const clientBars = [
+    { label: "Stable", count: stable, color: "bg-emerald-500" },
+    { label: "Follow-up", count: followUp, color: "bg-amber-400" },
+    { label: "Closed", count: closed, color: "bg-slate-300" },
+  ];
+
+  const statusBars = [
+    { label: "Upcoming", count: upcomingList.length, color: "bg-indigo-500" },
+    { label: "Past", count: pastList.length, color: "bg-emerald-500" },
+    { label: "Cancelled", count: cancelledList.length, color: "bg-rose-400" },
+  ];
+
+  const modeBars = [
+    { label: "Online", count: online, color: "bg-cyan-400" },
+    { label: "In person", count: inPerson, color: "bg-violet-400" },
+  ];
+
+  const upcomingSoon = [...upcomingList]
+    .sort((a, b) => Number(a.month) - Number(b.month) || a.day - b.day)
+    .slice(0, 6);
+
+  const bar = (count: number, total: number) =>
+    total === 0 ? 0 : Math.max(4, Math.round((count / total) * 100));
+
+  return (
+    <div className="space-y-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800">Analytics</h1>
+        <p className="mt-1 text-sm text-slate-400">
+          Insights for {MONTHS[now.getMonth()]} {now.getFullYear()}
+        </p>
+      </div>
+
+      {/* Key metric tiles */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          { label: totalConsults.label, value: totalConsults.value, sub: totalConsults.delta, icon: Users },
+          { label: repeatClients.label, value: repeatClients.value, sub: repeatClients.delta, icon: Activity },
+          { label: avgRating.label, value: avgRating.value, sub: avgRating.delta, icon: TrendingUp },
+          { label: hoursDelivered.label, value: hoursDelivered.value, sub: hoursDelivered.delta, icon: Clock },
+        ].map(({ label, value, sub, icon: Icon }) => (
+          <div key={label} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-500">
+              <Icon size={20} />
+            </div>
+            <p className="text-2xl font-bold text-slate-800">{value}</p>
+            <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
+            <p className="mt-0.5 text-[11px] font-medium text-slate-400">{sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Client portfolio */}
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="font-bold text-slate-700">Client Portfolio</h2>
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+              {active} active
+            </span>
+          </div>
+          <div className="space-y-4">
+            {clientBars.map(({ label, count, color }) => (
+              <div key={label}>
+                <div className="mb-1.5 flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-500">{label}</span>
+                  <span className="font-bold text-slate-700">{count}</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${color}`}
+                    style={{ width: `${bar(count, clients.length)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Appointment funnel */}
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="font-bold text-slate-700">Appointments this month</h2>
+            <Badge tone="brand">{monthTotal} total</Badge>
+          </div>
+          <div className="space-y-4">
+            {statusBars.map(({ label, count, color }) => (
+              <div key={label}>
+                <div className="mb-1.5 flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-500">{label}</span>
+                  <span className="font-bold text-slate-700">{count}</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${color}`}
+                    style={{ width: `${bar(count, monthTotal)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Mode split */}
+        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="font-bold text-slate-700">Consultation Mode</h2>
+            <Badge tone="gray">{monthTotal} sessions</Badge>
+          </div>
+          <div className="space-y-4">
+            {modeBars.map(({ label, count, color }) => (
+              <div key={label}>
+                <div className="mb-1.5 flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-500">{label}</span>
+                  <span className="font-bold text-slate-700">{count}</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${color}`}
+                    style={{ width: `${bar(count, monthTotal)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Upcoming this month */}
+      <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="font-bold text-slate-700">Upcoming Appointments</h2>
+          <Link
+            to="/appointments"
+            className="text-sm font-semibold text-indigo-600 hover:underline"
+          >
+            View Schedule
+          </Link>
+        </div>
+        {upcomingSoon.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">
+            No upcoming appointments for this month.
+          </p>
+        ) : (
+          <ul className="divide-y divide-slate-50">
+            {upcomingSoon.map((row) => (
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                <div>
+                  <p className="font-semibold text-slate-700">{row.client}</p>
+                  <p className="text-xs text-slate-400">
+                    {MONTHS_SHORT[row.month]} {row.day}, {row.start}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge tone={row.mode === "Online" ? "brand" : "amber"}>{row.mode}</Badge>
+                  <Badge tone={periodOf(row.start) === "Morning" ? "green" : periodOf(row.start) === "Afternoon" ? "amber" : "gray"}>
+                    {periodOf(row.start)}
+                  </Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
 }
 
 /* ------------------------------------------------- on the "appointments" view */

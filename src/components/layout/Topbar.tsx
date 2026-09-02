@@ -9,6 +9,7 @@ import { useAuth } from "@/context/auth-context";
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/appointments": "Appointments",
+  "/analytics": "Analytics",
   "/availability": "My Availability",
   "/client-records": "Client Records",
   "/consults": "My Consults",
