@@ -78,7 +78,7 @@ export default function LoginPage() {
 
       {/* Sign-in panel */}
       <div className="flex items-center justify-center p-6">
-        <div className="w-full max-w-sm rounded-2xl border border-ink-100 bg-white p-8 shadow-card">
+        <div className="w-full max-w-sm rounded-2xl border border-ink-100 bg-white p-6 shadow-card sm:p-8">
           <div className="flex items-center gap-2 lg:hidden">
             <LogoMark className="text-brand-500" width={26} height={26} />
             <span className="text-[14px] font-semibold tracking-tight text-ink-900">

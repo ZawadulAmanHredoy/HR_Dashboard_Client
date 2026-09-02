@@ -20,10 +20,10 @@ export function AppShell() {
           <div className="fixed inset-0 z-40 lg:hidden">
             <button
               aria-label="Close navigation"
-              className="absolute inset-0 bg-ink-900/40"
+              className="animate-backdrop-in absolute inset-0 bg-ink-900/40"
               onClick={() => setMobileOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 w-[248px] shadow-pop">
+            <div className="animate-drawer-in absolute inset-y-0 left-0 w-[248px] shadow-pop">
               <Sidebar onNavigate={() => setMobileOpen(false)} />
             </div>
           </div>

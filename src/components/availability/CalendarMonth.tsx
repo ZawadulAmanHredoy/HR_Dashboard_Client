@@ -50,15 +50,15 @@ export function CalendarMonth({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 px-1 pb-2">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 px-1 pb-2">
         {WEEKDAYS_MON.map((day) => (
-          <div key={day} className="text-center text-[11px] font-medium text-ink-400">
+          <div key={day} className="text-center text-[10px] font-medium text-ink-400 sm:text-[11px]">
             {day}
           </div>
         ))}
       </div>
 
-      <div className={cn("grid grid-cols-7 gap-1", loading && "opacity-50")}>
+      <div className={cn("grid grid-cols-7 gap-0.5 sm:gap-1", loading && "opacity-50")}>
         {weeks.flat().map((cell) => {
           const entry = cell.inMonth ? byDay.get(cell.day) : undefined;
           const isSelected = cell.key === selected;
@@ -69,7 +69,7 @@ export function CalendarMonth({
               type="button"
               onClick={() => cell.inMonth && onSelect(cell.key)}
               className={cn(
-                "flex h-[72px] flex-col rounded-xl border p-1.5 text-left transition-colors",
+                "flex h-16 flex-col rounded-lg border p-1 text-left transition-colors sm:h-[72px] sm:rounded-xl sm:p-1.5",
                 cell.inMonth
                   ? "border-ink-100 hover:border-brand-300"
                   : "border-transparent",

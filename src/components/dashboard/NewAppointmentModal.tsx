@@ -135,7 +135,7 @@ export function NewAppointmentModal({
         role="dialog"
         aria-modal="true"
         aria-label="New appointment"
-        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-pop"
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-pop max-h-[calc(100dvh-2rem)] overflow-y-auto"
       >
         <h2 className="text-[17px] font-semibold text-ink-900">
           {appointment ? "Edit Appointment" : "New Appointment"}

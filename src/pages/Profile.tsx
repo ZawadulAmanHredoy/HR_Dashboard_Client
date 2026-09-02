@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Avatar } from "@/components/ui/Avatar";
 import { PlusIcon } from "@/components/icons";
 import { usePageTitle } from "@/hooks/useApi";
 import { API_BASE_URL, api, type Profile } from "@/lib/api";
@@ -160,18 +161,11 @@ export default function ProfilePage() {
               if (file) void uploadAvatar(file);
             }}
           />
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt=""
-              className="h-16 w-16 rounded-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-[18px] font-semibold text-brand-600">
-              {user.initials}
-            </span>
-          )}
+          <Avatar
+            src={avatarUrl}
+            initials={user.initials}
+            className="h-16 w-16 text-[16px]"
+          />
           <div>
             <p className="text-[12.5px] font-medium text-ink-900">Profile image</p>
             <p className="text-[11.5px] text-ink-400">

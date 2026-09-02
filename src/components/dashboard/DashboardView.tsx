@@ -309,7 +309,7 @@ function NoteModal({
         role="dialog"
         aria-modal="true"
         aria-label="Add note"
-        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-pop"
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-pop max-h-[calc(100dvh-2rem)] overflow-y-auto"
       >
         <h2 className="text-[17px] font-semibold text-ink-900">Add note</h2>
         <p className="mt-1 text-[13px] text-ink-500">

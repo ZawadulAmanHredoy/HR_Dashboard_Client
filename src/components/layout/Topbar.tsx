@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { BellIcon, ChevronDown } from "@/components/icons";
+import { Avatar } from "@/components/ui/Avatar";
 import { Menu } from "@/components/ui/Menu";
 import { FALLBACK_PROFILE, useProfile } from "@/context/profile-context";
 import { useAuth } from "@/context/auth-context";
@@ -39,9 +40,9 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
             <span className="mt-1 block h-0.5 w-4 bg-current" />
             <span className="mt-1 block h-0.5 w-4 bg-current" />
           </button>
-          <div>
-            <p className="text-[13px] text-ink-500">{subtitle}</p>
-            <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">
+          <div className="min-w-0">
+            <p className="truncate text-[13px] text-ink-500">{subtitle}</p>
+            <h1 className="truncate text-[22px] font-semibold tracking-tight text-ink-900">
               {title}
             </h1>
           </div>
@@ -68,18 +69,11 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
             className="gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-ink-100"
             label={
               <>
-                {account?.avatarUrl ? (
-                  <img
-                    src={account.avatarUrl}
-                    alt=""
-                    className="h-7 w-7 rounded-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-[11px] font-semibold text-brand-600">
-                    {user.initials}
-                  </span>
-                )}
+                <Avatar
+                  src={user.avatarUrl ?? account?.avatarUrl}
+                  initials={user.initials}
+                  className="h-7 w-7 text-[11px]"
+                />
                 <span className="hidden text-[13px] text-ink-700 sm:inline">
                   {user.shortName}
                 </span>
