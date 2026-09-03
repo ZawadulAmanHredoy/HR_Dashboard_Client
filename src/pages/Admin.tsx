@@ -30,10 +30,10 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get<{ data: MentorApplication[] }>(
+      const rows = await api.get<MentorApplication[]>(
         `/admin/applications?status=${tab}`,
       );
-      setRows(data);
+      setRows(rows);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load applications.");
     } finally {
