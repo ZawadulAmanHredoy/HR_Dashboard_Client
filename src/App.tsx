@@ -12,7 +12,7 @@ import OnlineConsultPage from "@/pages/OnlineConsult";
 import ProfilePage from "@/pages/Profile";
 import HelpPage from "@/pages/Help";
 import AdminPage from "@/pages/Admin";
-import { RequireAdmin } from "@/components/auth/RequireAdmin";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 import { HomeRoute } from "@/components/auth/HomeRoute";
 
 export default function App() {
@@ -33,10 +33,11 @@ export default function App() {
             <Route path="online-consult" element={<OnlineConsultPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="help" element={<HelpPage />} />
-            <Route element={<RequireAdmin />}>
-              <Route path="admin" element={<AdminPage />} />
-            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminPage />} />
           </Route>
         </Routes>
       </AuthProvider>
