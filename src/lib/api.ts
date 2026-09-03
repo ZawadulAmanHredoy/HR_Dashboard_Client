@@ -72,6 +72,28 @@ export const api = {
 
 /* ------------------------------------------------------------------ types */
 
+export type MentorApplicationStatus = "draft" | "pending" | "approved" | "rejected";
+
+/** A consultant's request to be listed on the public website. */
+export type MentorApplication = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  designation: string;
+  department: string;
+  yearsExperience: number | null;
+  avatarUrl: string | null;
+  pricePerSession: number | null;
+  currency: string;
+  isPublished: boolean;
+  status: MentorApplicationStatus;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  note: string;
+};
+
 export type AppointmentStatus = "upcoming" | "past" | "cancelled";
 
 export type Appointment = {
@@ -171,6 +193,10 @@ export type Profile = {
   pricePerSession?: number | null;
   currency?: string;
   isPublished?: boolean;
+  /** draft -> pending -> approved | rejected. Only an admin moves it past pending. */
+  applicationStatus?: MentorApplicationStatus;
+  applicationSubmittedAt?: string | null;
+  applicationNote?: string;
   initials: string;
 
   // Contact information

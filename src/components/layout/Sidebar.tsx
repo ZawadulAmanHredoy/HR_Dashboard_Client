@@ -23,9 +23,17 @@ const NAV_ITEMS = [
   { href: "/help", label: "Help", icon: HelpIcon },
 ] as const;
 
+/** Only rendered for admins — everyone else has no review console to open. */
+const ADMIN_NAV_ITEM = {
+  href: "/admin",
+  label: "Applications",
+  icon: UsersIcon,
+} as const;
+
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { pathname } = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const navItems = user?.isAdmin ? [ADMIN_NAV_ITEM, ...NAV_ITEMS] : NAV_ITEMS;
 
   return (
     <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-ink-100 bg-white">
@@ -37,7 +45,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex-1 space-y-1 px-4">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/"
               ? pathname === "/" || pathname === "/appointments"

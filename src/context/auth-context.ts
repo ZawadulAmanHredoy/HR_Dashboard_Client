@@ -7,6 +7,8 @@ export type AuthUser = {
   avatarUrl: string | null;
   /** "google" for real sessions, "demo" for the credential-free fallback */
   provider: string;
+  /** Listed in admin_emails — routes to the application review console. */
+  isAdmin?: boolean;
 };
 
 /**

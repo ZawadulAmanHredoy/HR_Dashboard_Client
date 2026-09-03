@@ -208,7 +208,6 @@ export default function ProfilePage() {
         appointmentDurationMinutes: num("appointmentDurationMinutes"),
         pricePerSession: num("pricePerSession"),
         maxBookingsPerSlot: num("maxBookingsPerSlot"),
-        isPublished: form.get("isPublished") === "on",
 
         // Repeating sections
         education,
@@ -216,6 +215,18 @@ export default function ProfilePage() {
         certifications,
         experience,
       });
+      // "Display on website" is a request, not a switch: the profile only goes
+      // live once an admin approves. Saving the rest of the form first means
+      // the reviewer sees the details the consultant just entered.
+      const wantsListing = form.get("isPublished") === "on";
+      const alreadyLive =
+        user.applicationStatus === "pending" || user.applicationStatus === "approved";
+      if (wantsListing && !alreadyLive) {
+        await api.post("/profile/application", {});
+      } else if (!wantsListing && alreadyLive) {
+        await api.delete("/profile/application");
+      }
+
       refresh();
       setSaved(true);
     } catch (submitError) {
@@ -483,10 +494,27 @@ export default function ProfilePage() {
 
         <Toggle
           name="isPublished"
-          label="Display on Booking Page"
-          hint="Published consultants appear on the client app's Mentor page."
-          defaultChecked={user.isPublished ?? false}
+          label="Display on Website"
+          hint={
+            user.applicationStatus === "pending"
+              ? "Your application is under review. We will email you once an admin has looked at it."
+              : user.applicationStatus === "approved"
+                ? "Approved — your profile is live on the client app's Mentor page."
+                : user.applicationStatus === "rejected"
+                  ? `Not approved.${user.applicationNote ? ` Reason: ${user.applicationNote}` : ""} Update your profile and submit again.`
+                  : "Sends your profile for admin review. It appears on the Mentor page once approved."
+          }
+          defaultChecked={
+            user.applicationStatus === "pending" || user.applicationStatus === "approved"
+          }
         />
+
+        {user.applicationStatus === "pending" && (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+            Your application is under review — we will email you when a decision
+            is made.
+          </p>
+        )}
       </Section>
 
       {/* -------------------------------------------- Educational information */}
