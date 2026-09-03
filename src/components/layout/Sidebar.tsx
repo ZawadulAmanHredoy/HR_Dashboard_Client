@@ -47,10 +47,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav className="flex-1 space-y-1 px-4">
         {navItems.map(({ href, label, icon: Icon }) => {
+          // Dashboard is only itself. It used to also claim /appointments,
+          // back when that page had no nav entry of its own — now it does,
+          // and the borrowed match lit both rows at once.
           const active =
-            href === "/"
-              ? pathname === "/" || pathname === "/appointments"
-              : pathname.startsWith(href);
+            href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link
               key={href}
