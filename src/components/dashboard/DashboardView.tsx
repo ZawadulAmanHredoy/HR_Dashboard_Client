@@ -101,24 +101,30 @@ function Overview() {
   const avgRating = tileOf(2);
   const repeatClients = tileOf(3);
 
+  // Each bar needs its own scale: a consult count, a percentage and a rating
+  // out of five are not comparable, and reading them all as "percent" is what
+  // made an empty month show a part-filled bar.
   const analytics = [
     {
       label: "Total Consults",
       value: totalConsults.value,
       sub: totalConsults.delta,
       color: "bg-indigo-500",
+      percent: ratio(totalConsults.value, Math.max(upcoming.length, 1)),
     },
     {
       label: "Repeat Clients",
       value: repeatClients.value,
       sub: repeatClients.delta,
       color: "bg-green-500",
+      percent: ratio(repeatClients.value, 100),
     },
     {
       label: "Avg. Rating",
       value: avgRating.value,
       sub: avgRating.delta,
       color: "bg-cyan-400",
+      percent: ratio(avgRating.value, 5),
     },
   ];
 
@@ -243,7 +249,7 @@ function Overview() {
               <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                 <div
                   className={`h-full ${item.color}`}
-                  style={{ width: `${barWidth(item.value)}%` }}
+                  style={{ width: `${item.percent}%` }}
                 />
               </div>
               <p className="text-[11px] font-medium text-slate-400">{item.sub}</p>
@@ -479,10 +485,18 @@ function periodOf(start: string) {
   return "Evening";
 }
 
-function barWidth(value: string) {
+/**
+ * How full a bar should be, as a percentage of `max`.
+ *
+ * A missing value ("—", no reviews yet) and a genuine zero both read as
+ * empty. The old version floored every bar at 15% and fell back to 70% when
+ * it could not parse, so "0%" and "no rating" both showed progress that did
+ * not exist.
+ */
+function ratio(value: string, max: number) {
   const number = parseFloat(String(value).replace(/[^0-9.]/g, ""));
-  if (Number.isNaN(number)) return 70;
-  return Math.min(95, Math.max(15, number));
+  if (Number.isNaN(number) || max <= 0) return 0;
+  return Math.min(100, Math.max(0, (number / max) * 100));
 }
 
 function initials(name: string) {

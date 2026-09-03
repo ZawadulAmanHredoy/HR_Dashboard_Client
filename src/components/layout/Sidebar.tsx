@@ -15,6 +15,7 @@ import {
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: GridIcon },
+  { href: "/appointments", label: "Appointments", icon: CalendarIcon },
   { href: "/availability", label: "My Availability", icon: CalendarIcon },
   { href: "/client-records", label: "Client Records", icon: FolderIcon },
   { href: "/consults", label: "My Consults", icon: UsersIcon },
