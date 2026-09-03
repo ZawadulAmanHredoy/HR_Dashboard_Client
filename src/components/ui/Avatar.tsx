@@ -1,5 +1,6 @@
 import { useState, type ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
+import { avatarSrc } from "@/lib/avatar";
 
 /**
  * Round avatar image that degrades to initials when the picture is missing or
@@ -20,7 +21,8 @@ export function Avatar({
   imgClassName?: string;
 } & Omit<ImgHTMLAttributes<HTMLImageElement>, "src">) {
   const [failed, setFailed] = useState(false);
-  const showImg = Boolean(src) && !failed;
+  const resolved = avatarSrc(src);
+  const showImg = Boolean(resolved) && !failed;
   const fallback = (initials ?? name ?? "?").slice(0, 2).toUpperCase();
 
   return (
@@ -32,7 +34,7 @@ export function Avatar({
     >
       {showImg ? (
         <img
-          src={src!}
+          src={resolved!}
           alt=""
           loading="lazy"
           referrerPolicy="no-referrer"

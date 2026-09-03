@@ -1,3 +1,4 @@
+import { avatarSrc } from "@/lib/avatar";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -209,7 +210,7 @@ export default function ClientDetailsPage() {
             <div className="flex items-center gap-6">
               {data.avatarUrl ? (
                 <img
-                  src={data.avatarUrl}
+                  src={avatarSrc(data.avatarUrl)}
                   alt=""
                   referrerPolicy="no-referrer"
                   className="h-20 w-20 shrink-0 rounded-full border border-ink-100 object-cover"

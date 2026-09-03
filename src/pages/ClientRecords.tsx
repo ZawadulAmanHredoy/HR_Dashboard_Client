@@ -1,3 +1,4 @@
+import { avatarSrc } from "@/lib/avatar";
 import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -295,7 +296,7 @@ export default function ClientRecordsPage() {
                           >
                             {client.avatarUrl ? (
                               <img
-                                src={client.avatarUrl}
+                                src={avatarSrc(client.avatarUrl)}
                                 alt=""
                                 referrerPolicy="no-referrer"
                                 className="h-10 w-10 shrink-0 rounded-full object-cover"
