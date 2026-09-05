@@ -6,7 +6,6 @@ import { UpcomingPanel } from "@/components/availability/UpcomingPanel";
 import { LegacyGrid } from "@/components/availability/LegacyGrid";
 import { useApi } from "@/hooks/useApi";
 import { api, endpoints, type AvailabilityMonth, type AvailabilityDay } from "@/lib/api";
-import { AVAILABILITY_MONTH } from "@/lib/constants";
 import { useProfile } from "@/context/profile-context";
 
 const VIEWS = [
@@ -18,7 +17,8 @@ type View = (typeof VIEWS)[number]["value"];
 
 export function AvailabilityView() {
   const [view, setView] = useState<View>("calendar");
-  const [{ year, month }, setMonth] = useState(AVAILABILITY_MONTH);
+  const now = new Date();
+  const [{ year, month }, setMonth] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const { profile } = useProfile();
 
