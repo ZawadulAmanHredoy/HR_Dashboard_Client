@@ -625,6 +625,36 @@ export default function ProfilePage() {
 
 /* ------------------------------------------------------------------ pieces */
 
+/** Time input that opens the browser clock picker when clicked anywhere,
+ *  including on the "–:––" placeholder — not just the tiny native icon. */
+function TimeField({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <input
+      ref={ref}
+      type="time"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onClick={() => {
+        try {
+          ref.current?.showPicker?.();
+        } catch {
+          ref.current?.focus();
+        }
+      }}
+      className={className}
+    />
+  );
+}
+
 function AppointmentSchedule() {
   const [activeDay, setActiveDay] = useState<Weekday>("Monday");
   const [schedule, setSchedule] = useState<Record<Weekday, SlotRow[]>>(blankWeek);
@@ -795,22 +825,20 @@ function AppointmentSchedule() {
               {index === 0 ? (
                 <label className="mb-3 block text-sm font-bold text-ink-700">From</label>
               ) : null}
-              <input
-                type="time"
+              <TimeField
                 value={row.start}
-                onChange={(event) => updateRow(activeDay, index, { start: event.target.value })}
-                className="w-full rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-100"
+                onChange={(value) => updateRow(activeDay, index, { start: value })}
+                className="w-full rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               />
             </div>
             <div className="w-full md:flex-1">
               {index === 0 ? (
                 <label className="mb-3 block text-sm font-bold text-ink-700">To</label>
               ) : null}
-              <input
-                type="time"
+              <TimeField
                 value={row.end}
-                onChange={(event) => updateRow(activeDay, index, { end: event.target.value })}
-                className="w-full rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-100"
+                onChange={(value) => updateRow(activeDay, index, { end: value })}
+                className="w-full rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               />
             </div>
             <div className="flex gap-2 pb-1">
