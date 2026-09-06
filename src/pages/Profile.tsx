@@ -190,7 +190,6 @@ export default function ProfilePage() {
         bloodGroup: text("bloodGroup"),
         gender: text("gender"),
         bio: text("bio"),
-        featureOnWebsite: form.get("featureOnWebsite") === "on",
 
         // Address information
         addressLine1: text("addressLine1"),
@@ -367,12 +366,6 @@ export default function ProfilePage() {
             defaultValue={user.bio}
           />
         </Labelled>
-
-        <Toggle
-          name="featureOnWebsite"
-          label="Feature On Website"
-          defaultChecked={user.featureOnWebsite}
-        />
       </Section>
 
       {/* -------------------------------------------- Work Experience */}
