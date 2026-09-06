@@ -12,8 +12,6 @@ import { cn } from "@/lib/cn";
 const field =
   "h-10 w-full rounded-xl border border-ink-200 px-3 text-[13px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-400";
 
-const DEPARTMENTS = ["Career Services", "Recruitment", "Marketing", "Operations"];
-const DESIGNATIONS = ["Consultant", "Senior Consultant", "Manager", "Marketing"];
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const GENDERS = ["Female", "Male", "Prefer not to say"];
 const APPOINTMENT_TYPES = ["Online Consultation", "In person", "Both"];
@@ -329,10 +327,22 @@ export default function ProfilePage() {
             />
           </Labelled>
           <Labelled label="Department" required>
-            <Select name="department" value={user.department} options={DEPARTMENTS} required />
+            <input
+              name="department"
+              className={field}
+              defaultValue={user.department}
+              placeholder="e.g. Career Services"
+              required
+            />
           </Labelled>
           <Labelled label="Designation" required>
-            <Select name="designation" value={user.designation} options={DESIGNATIONS} required />
+            <input
+              name="designation"
+              className={field}
+              defaultValue={user.designation}
+              placeholder="e.g. Consultant"
+              required
+            />
           </Labelled>
           <Labelled label="NID Number">
             <input name="nidNumber" className={field} defaultValue={user.nidNumber} />
